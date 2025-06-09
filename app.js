@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const DEFAULT_USER_DATA = {
     settings: {
       categories: {
-        work: { label: 'Work (Smartory)', color: '#4a90e2' },
+        work: { label: 'Work', color: '#4a90e2' },
         study: { label: 'University', color: '#50e3c2' },
         'side-project': { label: 'Side Project', color: '#f5a623' },
       },
