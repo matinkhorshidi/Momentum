@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const DEFAULT_USER_DATA = {
     settings: {
+      focusDuration: 45, // Default focus session duration in minutes
       categories: [
         { id: 'work', label: 'Work (Smartory)', color: '#3b82f6' },
         { id: 'study', label: 'University', color: '#22c55e' },
@@ -64,10 +65,27 @@ document.addEventListener('DOMContentLoaded', () => {
     'new-category-color-picker-placeholder'
   );
 
+  // Focus Timer DOM Elements
+  const timerDisplay = document.getElementById('timer-time');
+  const timerProgressRing = document.getElementById('timer-progress-ring');
+  const startPauseBtn = document.getElementById('timer-start-pause-btn');
+  const resetBtn = document.getElementById('timer-reset-btn');
+  const durationInput = document.getElementById('timer-duration-input');
+
   // --- STATE MANAGEMENT ---
   let currentUser = null;
   let currentUserData = null;
-  let newCategoryColor = COLOR_PALETTE.Vibrant[0]; // Default color for new categories
+  let newCategoryColor = COLOR_PALETTE.Vibrant[0];
+
+  // Focus Timer State
+  let animationFrameId = null; // CHANGE: Use requestAnimationFrame
+  let isTimerRunning = false;
+  let timeRemainingInSeconds =
+    (DEFAULT_USER_DATA.settings.focusDuration || 45) * 60;
+  let totalDurationInSeconds =
+    (DEFAULT_USER_DATA.settings.focusDuration || 45) * 60;
+  let timerEndTime = 0; // The timestamp when the timer should end
+  let audioContext; // For alarm sound
 
   // --- UTILITY FUNCTIONS ---
   const getTodayDateString = () => new Date().toISOString().slice(0, 10);
@@ -101,13 +119,13 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDailyLog();
     renderHistory();
     initializeAddFormColorPicker();
+    initializeTimer();
   };
 
   const createColorPickerHTML = (selectedColor) => {
     let paletteHTML = '';
     for (const [groupName, colors] of Object.entries(COLOR_PALETTE)) {
-      paletteHTML += `<div class="palette-group">`;
-      paletteHTML += `<div class="palette-group-title">${groupName}</div>`;
+      paletteHTML += `<div class="palette-group"><div class="palette-group-title">${groupName}</div>`;
       paletteHTML += colors
         .map(
           (color) =>
@@ -116,15 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .join('');
       paletteHTML += `</div>`;
     }
-
-    return `
-          <div class="custom-color-picker">
-              <div class="current-color-swatch" style="background-color: ${selectedColor};"></div>
-              <div class="color-palette">
-                  ${paletteHTML}
-              </div>
-          </div>
-      `;
+    return `<div class="custom-color-picker"><div class="current-color-swatch" style="background-color: ${selectedColor};"></div><div class="color-palette">${paletteHTML}</div></div>`;
   };
 
   const initializeAddFormColorPicker = () => {
@@ -137,16 +147,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const categories = currentUserData.settings?.categories || [];
     const cumulativeTotals = {};
     let overallTotal = 0;
-
     for (const dailyData of Object.values(log)) {
       for (const [catId, count] of Object.entries(dailyData)) {
         cumulativeTotals[catId] = (cumulativeTotals[catId] || 0) + count;
         overallTotal += count;
       }
     }
-
     document.getElementById('total-units').textContent = overallTotal;
-
     const cumulativeContainer = document.getElementById(
       'cumulative-stats-container'
     );
@@ -168,15 +175,11 @@ document.addEventListener('DOMContentLoaded', () => {
       item.className = 'category-item';
       item.draggable = true;
       item.dataset.id = cat.id;
-
-      item.innerHTML = `
-        <span class="drag-handle">::</span>
-        <div class="custom-color-picker-container">${createColorPickerHTML(
-          cat.color
-        )}</div>
-        <input type="text" value="${cat.label}" data-id="${cat.id}">
-        <button class="delete-cat-btn" data-id="${cat.id}">&times;</button>
-    `;
+      item.innerHTML = `<span class="drag-handle">::</span><div class="custom-color-picker-container">${createColorPickerHTML(
+        cat.color
+      )}</div><input type="text" value="${cat.label}" data-id="${
+        cat.id
+      }"><button class="delete-cat-btn" data-id="${cat.id}">&times;</button>`;
       categoryListContainer.appendChild(item);
     });
   };
@@ -197,7 +200,6 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const renderDailyLog = () => {
-    // ... (This function remains unchanged)
     const todayStr = getTodayDateString();
     const todayLogContainer = document.getElementById('today-log');
     todayLogContainer.innerHTML = '';
@@ -228,7 +230,6 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const renderHistory = () => {
-    // ... (This function remains unchanged)
     const historyLogContainer = document.getElementById('history-log');
     historyLogContainer.innerHTML = '';
     const todayStr = getTodayDateString();
@@ -262,6 +263,89 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       historyLogContainer.appendChild(historyEntry);
     }
+  };
+
+  // --- FOCUS TIMER FUNCTIONS ---
+  const initializeTimer = () => {
+    const savedDuration = currentUserData.settings.focusDuration || 45;
+    durationInput.value = savedDuration;
+    totalDurationInSeconds = savedDuration * 60;
+    timeRemainingInSeconds = totalDurationInSeconds;
+    updateTimerDisplay();
+  };
+
+  const updateTimerDisplay = () => {
+    const minutes = Math.floor(timeRemainingInSeconds / 60);
+    const seconds = Math.floor(timeRemainingInSeconds % 60); // Use floor to avoid showing decimals
+    timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(
+      seconds
+    ).padStart(2, '0')}`;
+
+    const progress =
+      (totalDurationInSeconds - timeRemainingInSeconds) /
+      totalDurationInSeconds;
+    const angle = progress * 360;
+    timerProgressRing.style.background = `conic-gradient(var(--accent-color) ${angle}deg, transparent ${angle}deg)`;
+  };
+
+  const playAlarm = () => {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4 pitch
+    gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(
+      0.0001,
+      audioContext.currentTime + 1
+    );
+
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 1);
+  };
+
+  const startTimer = () => {
+    if (isTimerRunning) return;
+    isTimerRunning = true;
+    startPauseBtn.textContent = 'Pause';
+
+    timerEndTime = Date.now() + timeRemainingInSeconds * 1000;
+
+    function timerLoop() {
+      const now = Date.now();
+      timeRemainingInSeconds = Math.max(0, (timerEndTime - now) / 1000);
+      updateTimerDisplay();
+
+      if (timeRemainingInSeconds > 0) {
+        animationFrameId = requestAnimationFrame(timerLoop);
+      } else {
+        isTimerRunning = false;
+        startPauseBtn.textContent = 'Start';
+        playAlarm();
+        resetTimer();
+      }
+    }
+    animationFrameId = requestAnimationFrame(timerLoop);
+  };
+
+  const pauseTimer = () => {
+    if (!isTimerRunning) return;
+    isTimerRunning = false;
+    startPauseBtn.textContent = 'Start';
+    cancelAnimationFrame(animationFrameId);
+  };
+
+  const resetTimer = () => {
+    cancelAnimationFrame(animationFrameId);
+    isTimerRunning = false;
+    startPauseBtn.textContent = 'Start';
+    timeRemainingInSeconds = totalDurationInSeconds;
+    updateTimerDisplay();
   };
 
   // --- ACTION FUNCTIONS ---
@@ -300,38 +384,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const newCategory = {
         id: `custom_${Date.now()}`,
         label: newLabel,
-        color: newCategoryColor, // Use the state variable
+        color: newCategoryColor,
       };
       if (!currentUserData.settings.categories)
         currentUserData.settings.categories = [];
       currentUserData.settings.categories.push(newCategory);
-
-      newLabelInput.value = ''; // Reset form
-      newCategoryColor = COLOR_PALETTE.Vibrant[0]; // Reset color to default
-
+      newLabelInput.value = '';
+      newCategoryColor = COLOR_PALETTE.Vibrant[0];
       renderAll();
       await saveData();
     }
   });
 
-  categoryListContainer.addEventListener('change', async (e) => {
-    if (e.target.matches("input[type='text']")) {
-      const id = e.target.dataset.id;
-      const category = currentUserData.settings.categories.find(
-        (cat) => cat.id === id
-      );
-      if (category) {
-        category.label = e.target.value;
-        await saveData();
-      }
-    }
-  });
-
-  // Global click handler for color pickers and delete buttons
   document.body.addEventListener('click', async (e) => {
     const target = e.target;
-
-    // Handle opening/closing palettes
     const swatch = target.closest('.current-color-swatch');
     if (swatch) {
       const palette = swatch.nextElementSibling;
@@ -344,28 +410,21 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       return;
     }
-
-    // If clicking anywhere else, close open palettes
     if (!target.closest('.custom-color-picker')) {
       document
         .querySelectorAll('.color-palette.visible')
         .forEach((p) => p.classList.remove('visible'));
     }
-
-    // Handle selecting a color from a palette
     const option = target.closest('.color-option');
     if (option) {
       const selectedColor = option.dataset.color;
       const pickerContainer = option.closest('.custom-color-picker-container');
-
       if (pickerContainer.id === 'new-category-color-picker-placeholder') {
-        // This is the "Add New" form's color picker
         newCategoryColor = selectedColor;
         pickerContainer.querySelector(
           '.current-color-swatch'
         ).style.backgroundColor = selectedColor;
       } else {
-        // This is a color picker for an existing category
         const categoryItem = option.closest('.category-item');
         const id = categoryItem.dataset.id;
         const category = currentUserData.settings.categories.find(
@@ -376,15 +435,13 @@ document.addEventListener('DOMContentLoaded', () => {
           categoryItem.querySelector(
             '.current-color-swatch'
           ).style.backgroundColor = selectedColor;
-          renderUnitControls(); // Re-render controls to reflect new color
+          renderUnitControls();
           await saveData();
         }
       }
       option.closest('.color-palette').classList.remove('visible');
       return;
     }
-
-    // Handle delete button click
     if (target.matches('.delete-cat-btn')) {
       const id = target.dataset.id;
       const category = currentUserData.settings.categories.find(
@@ -405,8 +462,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // --- Drag and Drop Logic ---
-  // ... (This logic remains unchanged)
+  startPauseBtn.addEventListener('click', () => {
+    if (isTimerRunning) {
+      pauseTimer();
+    } else {
+      startTimer();
+    }
+  });
+  resetBtn.addEventListener('click', resetTimer);
+  durationInput.addEventListener('change', async () => {
+    const newDuration = parseInt(durationInput.value, 10);
+    if (newDuration > 0) {
+      currentUserData.settings.focusDuration = newDuration;
+      totalDurationInSeconds = newDuration * 60;
+      if (!isTimerRunning) {
+        resetTimer();
+      }
+      await saveData();
+    }
+  });
+
   let draggedItem = null;
   categoryListContainer.addEventListener('dragstart', (e) => {
     if (e.target.classList.contains('category-item')) {
@@ -459,8 +534,6 @@ document.addEventListener('DOMContentLoaded', () => {
     ).element;
   }
 
-  // --- Data I/O ---
-  // ... (This logic remains unchanged)
   const handleExport = () => {
     /* Remains the same */
   };
@@ -476,13 +549,11 @@ document.addEventListener('DOMContentLoaded', () => {
       currentUser = user;
       const userRef = db.collection('users').doc(user.uid);
       const doc = await userRef.get();
-      if (doc.exists) {
+      if (doc.exists && doc.data().settings) {
         currentUserData = doc.data();
-        if (
-          !currentUserData.settings ||
-          !Array.isArray(currentUserData.settings.categories)
-        ) {
-          currentUserData.settings = DEFAULT_USER_DATA.settings;
+        if (!currentUserData.settings.focusDuration) {
+          currentUserData.settings.focusDuration =
+            DEFAULT_USER_DATA.settings.focusDuration;
         }
       } else {
         currentUserData = JSON.parse(JSON.stringify(DEFAULT_USER_DATA));
@@ -512,7 +583,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     const errorEl = document.getElementById('login-error');
+    const loginButton = loginForm.querySelector('button');
+
     errorEl.textContent = '';
+    loginButton.disabled = true;
+    loginButton.innerHTML = '<div class="button-spinner"></div>';
+    loginButton.classList.add('loading');
+
+    const stopLoading = (errorMessage) => {
+      loginButton.disabled = false;
+      loginButton.innerHTML = "Let's Go";
+      loginButton.classList.remove('loading');
+      if (errorMessage) {
+        errorEl.textContent = errorMessage;
+      }
+    };
+
     auth.signInWithEmailAndPassword(email, password).catch((signInError) => {
       if (
         signInError.code === 'auth/user-not-found' ||
@@ -522,11 +608,10 @@ document.addEventListener('DOMContentLoaded', () => {
         auth
           .createUserWithEmailAndPassword(email, password)
           .catch((signUpError) => {
-            errorEl.textContent =
-              'Incorrect password or this email is already in use.';
+            stopLoading('Incorrect password or this email is already in use.');
           });
       } else {
-        errorEl.textContent = signInError.message;
+        stopLoading(signInError.message);
       }
     });
   });
