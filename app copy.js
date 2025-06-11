@@ -16,35 +16,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const db = firebase.firestore();
 
   // =================================================================
-  // Constants and Default Data
+  // Default Data for New Users (Categories are now an array)
   // =================================================================
-  const COLOR_PALETTE = {
-    Vibrant: [
-      '#ef4444',
-      '#f97316',
-      '#eab308',
-      '#22c55e',
-      '#3b82f6',
-      '#8b5cf6',
-      '#ec4899',
-    ],
-    Pastel: [
-      '#fca5a5',
-      '#fdba74',
-      '#fde047',
-      '#86efac',
-      '#93c5fd',
-      '#c4b5fd',
-      '#f9a8d4',
-    ],
-  };
-
   const DEFAULT_USER_DATA = {
     settings: {
+      // Data structure changed from object to array to preserve order
       categories: [
-        { id: 'work', label: 'Work (Smartory)', color: '#3b82f6' },
-        { id: 'study', label: 'University', color: '#22c55e' },
-        { id: 'side-project', label: 'Side Project', color: '#f97316' },
+        { id: 'work', label: 'Work (Smartory)', color: '#4a90e2' },
+        { id: 'study', label: 'University', color: '#50e3c2' },
+        { id: 'side-project', label: 'Side Project', color: '#f5a623' },
       ],
     },
     log: {},
@@ -60,14 +40,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const importFile = document.getElementById('import-file');
   const categoryListContainer = document.getElementById('category-list');
   const addCategoryForm = document.getElementById('add-category-form');
-  const newCategoryColorPickerPlaceholder = document.getElementById(
-    'new-category-color-picker-placeholder'
-  );
 
   // --- STATE MANAGEMENT ---
   let currentUser = null;
   let currentUserData = null;
-  let newCategoryColor = COLOR_PALETTE.Vibrant[0]; // Default color for new categories
 
   // --- UTILITY FUNCTIONS ---
   const getTodayDateString = () => new Date().toISOString().slice(0, 10);
@@ -92,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // --- RENDER FUNCTIONS ---
+  // --- RENDER FUNCTIONS (Heavily updated) ---
   const renderAll = () => {
     if (!currentUserData) return;
     renderStats();
@@ -100,36 +76,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderUnitControls();
     renderDailyLog();
     renderHistory();
-    initializeAddFormColorPicker();
-  };
-
-  const createColorPickerHTML = (selectedColor) => {
-    let paletteHTML = '';
-    for (const [groupName, colors] of Object.entries(COLOR_PALETTE)) {
-      paletteHTML += `<div class="palette-group">`;
-      paletteHTML += `<div class="palette-group-title">${groupName}</div>`;
-      paletteHTML += colors
-        .map(
-          (color) =>
-            `<div class="color-option" data-color="${color}" style="background-color: ${color};"></div>`
-        )
-        .join('');
-      paletteHTML += `</div>`;
-    }
-
-    return `
-          <div class="custom-color-picker">
-              <div class="current-color-swatch" style="background-color: ${selectedColor};"></div>
-              <div class="color-palette">
-                  ${paletteHTML}
-              </div>
-          </div>
-      `;
-  };
-
-  const initializeAddFormColorPicker = () => {
-    newCategoryColorPickerPlaceholder.innerHTML =
-      createColorPickerHTML(newCategoryColor);
   };
 
   const renderStats = () => {
@@ -155,7 +101,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const total = cumulativeTotals[category.id] || 0;
       const item = document.createElement('div');
       item.className = 'cumulative-stat-item';
-      item.innerHTML = `<div class="count">${total}</div><div class="label">${category.label}</div>`;
+      item.innerHTML = `
+                <div class="count" style="color: ${category.color};">${total}</div>
+                <div class="label">${category.label}</div>
+            `;
       cumulativeContainer.appendChild(item);
     });
   };
@@ -168,15 +117,12 @@ document.addEventListener('DOMContentLoaded', () => {
       item.className = 'category-item';
       item.draggable = true;
       item.dataset.id = cat.id;
-
       item.innerHTML = `
-        <span class="drag-handle">::</span>
-        <div class="custom-color-picker-container">${createColorPickerHTML(
-          cat.color
-        )}</div>
-        <input type="text" value="${cat.label}" data-id="${cat.id}">
-        <button class="delete-cat-btn" data-id="${cat.id}">&times;</button>
-    `;
+                <span class="drag-handle">::</span>
+                <input type="color" value="${cat.color}" data-id="${cat.id}">
+                <input type="text" value="${cat.label}" data-id="${cat.id}">
+                <button class="delete-cat-btn" data-id="${cat.id}">🗑️</button>
+            `;
       categoryListContainer.appendChild(item);
     });
   };
@@ -197,29 +143,40 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const renderDailyLog = () => {
-    // ... (This function remains unchanged)
     const todayStr = getTodayDateString();
+    document.getElementById('current-date').textContent =
+      new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+      });
     const todayLogContainer = document.getElementById('today-log');
     todayLogContainer.innerHTML = '';
+
     if (currentUserData.log && currentUserData.log[todayStr]) {
       const categoryMap = new Map(
         (currentUserData.settings.categories || []).map((cat) => [cat.id, cat])
       );
+
       for (const [catId, count] of Object.entries(
         currentUserData.log[todayStr]
       )) {
         const categoryInfo = categoryMap.get(catId);
         if (!categoryInfo) continue;
+
         for (let i = 0; i < count; i++) {
           const unitBlock = document.createElement('div');
           unitBlock.className = 'unit-block';
           unitBlock.style.backgroundColor = categoryInfo.color;
           unitBlock.title = `Click to remove one unit of "${categoryInfo.label}"`;
-          unitBlock.innerHTML = `<span class="initial-letter" style="color: ${getTextColorForBg(
-            categoryInfo.color
-          )};">${categoryInfo.label
+          unitBlock.innerHTML = `
+                        <span class="initial-letter" style="color: ${getTextColorForBg(
+                          categoryInfo.color
+                        )};">${categoryInfo.label
             .charAt(0)
-            .toUpperCase()}</span><span class="delete-icon">&times;</span>`;
+            .toUpperCase()}</span>
+                        <span class="delete-icon">&times;</span>
+                    `;
           unitBlock.onclick = () => removeUnit(catId);
           todayLogContainer.appendChild(unitBlock);
         }
@@ -228,7 +185,6 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const renderHistory = () => {
-    // ... (This function remains unchanged)
     const historyLogContainer = document.getElementById('history-log');
     historyLogContainer.innerHTML = '';
     const todayStr = getTodayDateString();
@@ -237,6 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
       (currentUserData.settings.categories || []).map((cat) => [cat.id, cat])
     );
     const sortedDates = Object.keys(log).sort().reverse();
+
     for (const date of sortedDates) {
       if (date === todayStr) continue;
       const dailyData = log[date];
@@ -245,21 +202,37 @@ document.addEventListener('DOMContentLoaded', () => {
         0
       );
       if (dailyTotal === 0) continue;
+
       const historyEntry = document.createElement('div');
       historyEntry.className = 'history-entry';
+
       let detailsHtml = '';
       for (const [catId, count] of Object.entries(dailyData)) {
         const category = categoryMap.get(catId);
         if (category) {
-          detailsHtml += `<div class="detail-item"><div class="detail-color-dot" style="background-color: ${category.color};"></div>${category.label}: <strong>${count}</strong> units</div>`;
+          detailsHtml += `
+                        <div class="detail-item">
+                            <div class="detail-color-dot" style="background-color: ${category.color};"></div>
+                            ${category.label}: <strong>${count}</strong> units
+                        </div>
+                    `;
         }
       }
-      historyEntry.innerHTML = `<div class="history-summary"><span class="history-date">${date}</span><span class="history-total">${dailyTotal} units</span></div><div class="history-details">${detailsHtml}</div>`;
+
+      historyEntry.innerHTML = `
+                <div class="history-summary">
+                    <span class="history-date">${date}</span>
+                    <span class="history-total">${dailyTotal} units</span>
+                </div>
+                <div class="history-details">${detailsHtml}</div>
+            `;
+
       historyEntry
         .querySelector('.history-summary')
         .addEventListener('click', (e) => {
           e.currentTarget.nextElementSibling.classList.toggle('visible');
         });
+
       historyLogContainer.appendChild(historyEntry);
     }
   };
@@ -295,98 +268,41 @@ document.addEventListener('DOMContentLoaded', () => {
   addCategoryForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const newLabelInput = document.getElementById('new-category-label');
+    const newColorInput = document.getElementById('new-category-color');
     const newLabel = newLabelInput.value.trim();
     if (newLabel) {
       const newCategory = {
         id: `custom_${Date.now()}`,
         label: newLabel,
-        color: newCategoryColor, // Use the state variable
+        color: newColorInput.value,
       };
       if (!currentUserData.settings.categories)
         currentUserData.settings.categories = [];
       currentUserData.settings.categories.push(newCategory);
-
-      newLabelInput.value = ''; // Reset form
-      newCategoryColor = COLOR_PALETTE.Vibrant[0]; // Reset color to default
-
+      newLabelInput.value = '';
       renderAll();
       await saveData();
     }
   });
 
   categoryListContainer.addEventListener('change', async (e) => {
-    if (e.target.matches("input[type='text']")) {
+    if (e.target.matches('input')) {
       const id = e.target.dataset.id;
+      const property = e.target.type === 'text' ? 'label' : 'color';
       const category = currentUserData.settings.categories.find(
         (cat) => cat.id === id
       );
       if (category) {
-        category.label = e.target.value;
+        category[property] = e.target.value;
+        renderAll();
         await saveData();
       }
     }
   });
 
-  // Global click handler for color pickers and delete buttons
-  document.body.addEventListener('click', async (e) => {
-    const target = e.target;
-
-    // Handle opening/closing palettes
-    const swatch = target.closest('.current-color-swatch');
-    if (swatch) {
-      const palette = swatch.nextElementSibling;
-      const isVisible = palette.classList.contains('visible');
-      document
-        .querySelectorAll('.color-palette.visible')
-        .forEach((p) => p.classList.remove('visible'));
-      if (!isVisible) {
-        palette.classList.add('visible');
-      }
-      return;
-    }
-
-    // If clicking anywhere else, close open palettes
-    if (!target.closest('.custom-color-picker')) {
-      document
-        .querySelectorAll('.color-palette.visible')
-        .forEach((p) => p.classList.remove('visible'));
-    }
-
-    // Handle selecting a color from a palette
-    const option = target.closest('.color-option');
-    if (option) {
-      const selectedColor = option.dataset.color;
-      const pickerContainer = option.closest('.custom-color-picker-container');
-
-      if (pickerContainer.id === 'new-category-color-picker-placeholder') {
-        // This is the "Add New" form's color picker
-        newCategoryColor = selectedColor;
-        pickerContainer.querySelector(
-          '.current-color-swatch'
-        ).style.backgroundColor = selectedColor;
-      } else {
-        // This is a color picker for an existing category
-        const categoryItem = option.closest('.category-item');
-        const id = categoryItem.dataset.id;
-        const category = currentUserData.settings.categories.find(
-          (cat) => cat.id === id
-        );
-        if (category) {
-          category.color = selectedColor;
-          categoryItem.querySelector(
-            '.current-color-swatch'
-          ).style.backgroundColor = selectedColor;
-          renderUnitControls(); // Re-render controls to reflect new color
-          await saveData();
-        }
-      }
-      option.closest('.color-palette').classList.remove('visible');
-      return;
-    }
-
-    // Handle delete button click
-    if (target.matches('.delete-cat-btn')) {
-      const id = target.dataset.id;
+  categoryListContainer.addEventListener('click', async (e) => {
+    if (e.target.matches('.delete-cat-btn')) {
+      const id = e.target.dataset.id;
       const category = currentUserData.settings.categories.find(
         (cat) => cat.id === id
       );
@@ -401,13 +317,12 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAll();
         await saveData();
       }
-      return;
     }
   });
 
   // --- Drag and Drop Logic ---
-  // ... (This logic remains unchanged)
   let draggedItem = null;
+
   categoryListContainer.addEventListener('dragstart', (e) => {
     if (e.target.classList.contains('category-item')) {
       draggedItem = e.target;
@@ -416,20 +331,24 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 0);
     }
   });
+
   categoryListContainer.addEventListener('dragend', async (e) => {
     if (draggedItem) {
       draggedItem.classList.remove('dragging');
       draggedItem = null;
+
       const newOrderedIds = [
         ...categoryListContainer.querySelectorAll('.category-item'),
       ].map((item) => item.dataset.id);
       currentUserData.settings.categories.sort(
         (a, b) => newOrderedIds.indexOf(a.id) - newOrderedIds.indexOf(b.id)
       );
+
       await saveData();
       renderAll();
     }
   });
+
   categoryListContainer.addEventListener('dragover', (e) => {
     e.preventDefault();
     const afterElement = getDragAfterElement(categoryListContainer, e.clientY);
@@ -441,6 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   });
+
   function getDragAfterElement(container, y) {
     const draggableElements = [
       ...container.querySelectorAll('.category-item:not(.dragging)'),
@@ -459,14 +379,13 @@ document.addEventListener('DOMContentLoaded', () => {
     ).element;
   }
 
-  // --- Data I/O ---
-  // ... (This logic remains unchanged)
   const handleExport = () => {
     /* Remains the same */
   };
   const handleImport = async (event) => {
     /* Remains the same */
   };
+
   exportButton.addEventListener('click', handleExport);
   importFile.addEventListener('change', handleImport);
 
@@ -476,18 +395,19 @@ document.addEventListener('DOMContentLoaded', () => {
       currentUser = user;
       const userRef = db.collection('users').doc(user.uid);
       const doc = await userRef.get();
+
       if (doc.exists) {
         currentUserData = doc.data();
-        if (
-          !currentUserData.settings ||
-          !Array.isArray(currentUserData.settings.categories)
-        ) {
-          currentUserData.settings = DEFAULT_USER_DATA.settings;
+        if (!Array.isArray(currentUserData.settings.categories)) {
+          currentUserData.settings.categories = Object.entries(
+            currentUserData.settings.categories || {}
+          ).map(([id, value]) => ({ id, ...value }));
         }
       } else {
         currentUserData = JSON.parse(JSON.stringify(DEFAULT_USER_DATA));
         await userRef.set(currentUserData);
       }
+
       loadingOverlay.style.opacity = '0';
       setTimeout(() => {
         loadingOverlay.style.display = 'none';
@@ -513,6 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const password = document.getElementById('password').value;
     const errorEl = document.getElementById('login-error');
     errorEl.textContent = '';
+
     auth.signInWithEmailAndPassword(email, password).catch((signInError) => {
       if (
         signInError.code === 'auth/user-not-found' ||
