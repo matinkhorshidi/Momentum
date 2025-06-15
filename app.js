@@ -2,12 +2,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // =================================================================
   // Supabase Configuration
   // =================================================================
-  const SUPABASE_URL = 'https://mkusvmrjvvsnmamnoxfl.supabase.co';
+  const SUPABASE_URL = 'https://tjdhpagvtbrcdwfvhoyc.supabase.co';
   const SUPABASE_ANON_KEY =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1rdXN2bXJqdnZzbm1hbW5veGZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2ODQzODMsImV4cCI6MjA2NTI2MDM4M30.1PIV03KBMIcLVG0oSIoggE6TjVSesTVhJ70IZB60Rpo'; // <<<< جایگزین شود
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqZGhwYWd2dGJyY2R3ZnZob3ljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk5ODI1NjksImV4cCI6MjA2NTU1ODU2OX0.OFylOtQvkNXGdblGjmUlmenX_tonZbaqwxO2Kjjf7HQ';
 
   const { createClient } = supabase;
-  const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // =================================================================
   // Constants and Default Data
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     settings: {
       focusDuration: 45,
       categories: [
-        { id: 'work', label: 'Work (Smartory)', color: '#3b82f6' },
+        { id: 'work', label: 'Work', color: '#3b82f6' },
         { id: 'study', label: 'University', color: '#22c55e' },
         { id: 'side-project', label: 'Side Project', color: '#f97316' },
       ],
@@ -88,20 +88,20 @@ document.addEventListener('DOMContentLoaded', () => {
     return yiq >= 128 ? '#000000' : '#FFFFFF';
   };
 
-  // --- DATA HANDLING (Supabase) ---
+  // --- DATA HANDLING (SUPABASE) ---
   const saveData = async () => {
     if (currentUser && currentUserData) {
-      const { error } = await db
+      const { error } = await _supabase
         .from('profiles')
-        .update({ data: currentUserData })
-        .eq('id', currentUser.id);
+        .upsert({ user_id: currentUser.id, data: currentUserData });
+
       if (error) {
-        console.error('Error saving data:', error);
+        console.error('Error saving data:', error.message);
       }
     }
   };
 
-  // --- RENDER FUNCTIONS (unchanged) ---
+  // --- UI/RENDER FUNCTIONS ---
   const renderAll = () => {
     if (!currentUserData) return;
     renderStats();
@@ -112,6 +112,126 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeAddFormColorPicker();
     initializeTimer();
   };
+
+  // --- AUTHENTICATION LOGIC (SUPABASE) ---
+
+  // Listen to auth state changes
+  _supabase.auth.onAuthStateChange(async (event, session) => {
+    // This handles both a new login and a session restored from localStorage on page load.
+    if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+      currentUser = session.user;
+
+      const { data, error } = await _supabase
+        .from('profiles')
+        .select('data')
+        .eq('user_id', currentUser.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        // PGRST116 means no rows found, which is okay.
+        console.error('Error fetching profile:', error);
+      }
+
+      if (data && data.data) {
+        currentUserData = data.data;
+        // Ensure data integrity from older versions
+        if (
+          !currentUserData.settings ||
+          !currentUserData.settings.focusDuration
+        ) {
+          currentUserData.settings = {
+            ...DEFAULT_USER_DATA.settings,
+            ...currentUserData.settings,
+          };
+        }
+      } else {
+        // This handles cases where the trigger hasn't created the row yet on first login.
+        currentUserData = JSON.parse(JSON.stringify(DEFAULT_USER_DATA));
+        await saveData(); // This will create the profile row via upsert.
+      }
+
+      // Show the main app
+      loadingOverlay.style.opacity = '0';
+      setTimeout(() => {
+        loadingOverlay.style.display = 'none';
+        loginScreen.style.display = 'none';
+        appContainer.style.display = 'block';
+      }, 300);
+      renderAll();
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      currentUserData = null;
+      // Show the login screen
+      loadingOverlay.style.opacity = '0';
+      setTimeout(() => {
+        loadingOverlay.style.display = 'none';
+        loginScreen.style.display = 'flex';
+        appContainer.style.display = 'none';
+      }, 300);
+    } else if (event === 'INITIAL_SESSION' && !session) {
+      // This case is important for when the page loads and the user is NOT logged in.
+      loadingOverlay.style.opacity = '0';
+      setTimeout(() => {
+        loadingOverlay.style.display = 'none';
+        loginScreen.style.display = 'flex';
+        appContainer.style.display = 'none';
+      }, 300);
+    }
+  });
+
+  // Handle Login/Sign up form
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const errorEl = document.getElementById('login-error');
+    const loginButton = loginForm.querySelector('button');
+
+    // --- Start Loading State ---
+    errorEl.textContent = '';
+    loginButton.disabled = true;
+    loginButton.innerHTML = '<div class="button-spinner"></div>';
+    loginButton.classList.add('loading');
+
+    const stopLoading = (errorMessage) => {
+      loginButton.disabled = false;
+      loginButton.innerHTML = "Let's Go";
+      loginButton.classList.remove('loading');
+      if (errorMessage) {
+        errorEl.textContent = errorMessage;
+      }
+    };
+
+    // 1. Try to sign in
+    let { error: signInError } = await _supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      // 2. If sign-in fails, try to sign up
+      let { error: signUpError } = await _supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (signUpError) {
+        // 3. If both fail, show an error
+        stopLoading(signUpError.message || signInError.message);
+      }
+      // If sign up is successful, onAuthStateChange will handle the rest.
+      // No need to stopLoading here as the page will transition.
+    }
+    // If sign in is successful, onAuthStateChange will handle the rest.
+  });
+
+  // Handle Logout
+  logoutButton.addEventListener('click', async () => {
+    await _supabase.auth.signOut();
+  });
+
+  // --- The rest of the functions (render, timer, etc.) remain largely the same ---
+  // They are included here for completeness.
 
   const createColorPickerHTML = (selectedColor) => {
     let paletteHTML = '';
@@ -256,7 +376,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // --- FOCUS TIMER FUNCTIONS (unchanged) ---
   const initializeTimer = () => {
     const savedDuration = currentUserData.settings.focusDuration || 45;
     durationInput.value = savedDuration;
@@ -333,15 +452,16 @@ document.addEventListener('DOMContentLoaded', () => {
     updateTimerDisplay();
   };
 
-  // --- ACTION FUNCTIONS (unchanged) ---
   const addUnit = async (catId) => {
     const todayStr = getTodayDateString();
     if (!currentUserData.log) currentUserData.log = {};
     if (!currentUserData.log[todayStr]) currentUserData.log[todayStr] = {};
     currentUserData.log[todayStr][catId] =
       (currentUserData.log[todayStr][catId] || 0) + 1;
-    renderAll();
     await saveData();
+    renderUnitControls();
+    renderDailyLog();
+    renderStats();
   };
 
   const removeUnit = async (catId) => {
@@ -355,12 +475,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (currentUserData.log[todayStr][catId] <= 0) {
         delete currentUserData.log[todayStr][catId];
       }
-      renderAll();
       await saveData();
+      renderUnitControls();
+      renderDailyLog();
+      renderStats();
     }
   };
 
-  // --- EVENT HANDLERS (unchanged, minor async changes) ---
   addCategoryForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const newLabelInput = document.getElementById('new-category-label');
@@ -376,8 +497,8 @@ document.addEventListener('DOMContentLoaded', () => {
       currentUserData.settings.categories.push(newCategory);
       newLabelInput.value = '';
       newCategoryColor = COLOR_PALETTE.Vibrant[0];
-      renderAll();
       await saveData();
+      renderAll();
     }
   });
 
@@ -390,7 +511,9 @@ document.addEventListener('DOMContentLoaded', () => {
       document
         .querySelectorAll('.color-palette.visible')
         .forEach((p) => p.classList.remove('visible'));
-      if (!isVisible) palette.classList.add('visible');
+      if (!isVisible) {
+        palette.classList.add('visible');
+      }
       return;
     }
     if (!target.closest('.custom-color-picker')) {
@@ -415,11 +538,8 @@ document.addEventListener('DOMContentLoaded', () => {
         );
         if (category) {
           category.color = selectedColor;
-          categoryItem.querySelector(
-            '.current-color-swatch'
-          ).style.backgroundColor = selectedColor;
-          renderUnitControls();
           await saveData();
+          renderAll();
         }
       }
       option.closest('.color-palette').classList.remove('visible');
@@ -438,15 +558,19 @@ document.addEventListener('DOMContentLoaded', () => {
       ) {
         currentUserData.settings.categories =
           currentUserData.settings.categories.filter((cat) => cat.id !== id);
-        renderAll();
         await saveData();
+        renderAll();
       }
       return;
     }
   });
 
   startPauseBtn.addEventListener('click', () => {
-    isTimerRunning ? pauseTimer() : startTimer();
+    if (isTimerRunning) {
+      pauseTimer();
+    } else {
+      startTimer();
+    }
   });
   resetBtn.addEventListener('click', resetTimer);
   durationInput.addEventListener('change', async () => {
@@ -454,132 +578,98 @@ document.addEventListener('DOMContentLoaded', () => {
     if (newDuration > 0) {
       currentUserData.settings.focusDuration = newDuration;
       totalDurationInSeconds = newDuration * 60;
-      if (!isTimerRunning) resetTimer();
+      if (!isTimerRunning) {
+        resetTimer();
+      }
       await saveData();
     }
   });
 
   let draggedItem = null;
   categoryListContainer.addEventListener('dragstart', (e) => {
-    /* ... unchanged ... */
+    if (e.target.classList.contains('category-item')) {
+      draggedItem = e.target;
+      setTimeout(() => {
+        e.target.classList.add('dragging');
+      }, 0);
+    }
   });
   categoryListContainer.addEventListener('dragend', async (e) => {
-    /* ... unchanged ... */
+    if (draggedItem) {
+      draggedItem.classList.remove('dragging');
+      draggedItem = null;
+      const newOrderedIds = [
+        ...categoryListContainer.querySelectorAll('.category-item'),
+      ].map((item) => item.dataset.id);
+      currentUserData.settings.categories.sort(
+        (a, b) => newOrderedIds.indexOf(a.id) - newOrderedIds.indexOf(b.id)
+      );
+      await saveData();
+      renderAll();
+    }
   });
   categoryListContainer.addEventListener('dragover', (e) => {
-    /* ... unchanged ... */
+    e.preventDefault();
+    const afterElement = getDragAfterElement(categoryListContainer, e.clientY);
+    if (draggedItem) {
+      if (afterElement == null) {
+        categoryListContainer.appendChild(draggedItem);
+      } else {
+        categoryListContainer.insertBefore(draggedItem, afterElement);
+      }
+    }
   });
   function getDragAfterElement(container, y) {
-    /* ... unchanged ... */
+    const draggableElements = [
+      ...container.querySelectorAll('.category-item:not(.dragging)'),
+    ];
+    return draggableElements.reduce(
+      (closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        } else {
+          return closest;
+        }
+      },
+      { offset: Number.NEGATIVE_INFINITY }
+    ).element;
   }
+
   const handleExport = () => {
-    /* ... unchanged ... */
+    if (!currentUserData) return;
+    const dataStr = JSON.stringify(currentUserData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `momentum-backup-${getTodayDateString()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
-  const handleImport = async (event) => {
-    /* ... unchanged ... */
+  const handleImport = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const importedData = JSON.parse(e.target.result);
+        if (importedData.settings && importedData.log) {
+          currentUserData = importedData;
+          await saveData();
+          renderAll();
+          alert('Data imported successfully!');
+        } else {
+          alert('Invalid data format.');
+        }
+      } catch (error) {
+        alert('Error reading the import file.');
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
   };
   exportButton.addEventListener('click', handleExport);
   importFile.addEventListener('change', handleImport);
-
-  // --- AUTHENTICATION LOGIC (Supabase) ---
-  db.auth.onAuthStateChange(async (event, session) => {
-    if (session && session.user) {
-      currentUser = session.user;
-      const { data: profileData, error } = await db
-        .from('profiles')
-        .select('data')
-        .eq('id', currentUser.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        // PGRST116 = 'no rows found'
-        console.error('Error fetching profile:', error);
-      } else if (profileData && profileData.data) {
-        currentUserData = profileData.data;
-        if (!currentUserData.settings.focusDuration) {
-          currentUserData.settings.focusDuration =
-            DEFAULT_USER_DATA.settings.focusDuration;
-        }
-      } else {
-        // New user, create a profile.
-        currentUserData = JSON.parse(JSON.stringify(DEFAULT_USER_DATA));
-        const { error: insertError } = await db
-          .from('profiles')
-          .insert({ id: currentUser.id, data: currentUserData });
-        if (insertError) console.error('Error creating profile:', insertError);
-      }
-
-      loadingOverlay.style.opacity = '0';
-      setTimeout(() => {
-        loadingOverlay.style.display = 'none';
-        loginScreen.style.display = 'none';
-        appContainer.style.display = 'block';
-      }, 300);
-      renderAll();
-    } else {
-      currentUser = null;
-      currentUserData = null;
-      loadingOverlay.style.opacity = '0';
-      setTimeout(() => {
-        loadingOverlay.style.display = 'none';
-        loginScreen.style.display = 'flex';
-        appContainer.style.display = 'none';
-      }, 300);
-    }
-  });
-
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const errorEl = document.getElementById('login-error');
-    const loginButton = loginForm.querySelector('button');
-
-    const startLoading = () => {
-      errorEl.textContent = '';
-      loginButton.disabled = true;
-      loginButton.innerHTML = '<div class="button-spinner"></div>';
-      loginButton.classList.add('loading');
-    };
-
-    const stopLoading = (errorMessage) => {
-      loginButton.disabled = false;
-      loginButton.innerHTML = "Let's Go";
-      loginButton.classList.remove('loading');
-      if (errorMessage) errorEl.textContent = errorMessage;
-    };
-
-    startLoading();
-
-    // First, try to sign in
-    const { error: signInError } = await db.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (signInError) {
-      // If sign-in fails, try to sign up (create a new account)
-      if (signInError.message.includes('Invalid login credentials')) {
-        const { error: signUpError } = await db.auth.signUp({
-          email,
-          password,
-        });
-        if (signUpError) {
-          stopLoading(signUpError.message);
-        } else {
-          // Sign up successful, onAuthStateChange will handle the rest
-          stopLoading();
-        }
-      } else {
-        stopLoading(signInError.message);
-      }
-    } else {
-      // Sign in successful, onAuthStateChange will handle the rest
-      stopLoading();
-    }
-  });
-
-  logoutButton.addEventListener('click', () => {
-    db.auth.signOut();
-  });
 });
