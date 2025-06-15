@@ -1,0 +1,8 @@
+/* ==================================================================================== */
+/*  FILE src/index.css */
+/*  This is the main CSS entry point. It includes Tailwind's base styles */
+/*  and defines global styles for the body. */
+/*  ==================================================================================== */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
