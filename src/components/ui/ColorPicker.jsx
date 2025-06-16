@@ -25,8 +25,8 @@ const ColorPicker = ({ selectedColor, onColorChange }) => {
       {isOpen && (
         <div className="absolute top-[120%] left-1/2 -translate-x-1/2 bg-input-bg p-2.5 rounded-xl shadow-[0_5px_15px_rgba(0,0,0,0.4)] z-10 w-max">
           {Object.entries(COLOR_PALETTE).map(([name, colors]) => (
-            <div key={name}>
-              <p className="text-xs text-secondary-text mb-1 text-left">
+            <div key={name} className="p-1">
+              <p className="text-xs text-secondary-text mb-3 text-left">
                 {name}
               </p>
               <div className="grid grid-cols-7 gap-2">

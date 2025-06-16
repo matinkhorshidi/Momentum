@@ -31,6 +31,9 @@ module.exports = {
       animation: {
         'pop-in': 'pop-in 0.3s ease-out',
       },
+      boxShadow: {
+        glow: '0 0 12px 2px var(--glow-color)',
+      },
     },
   },
   plugins: [],
