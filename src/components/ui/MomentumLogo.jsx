@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-// Add a `size` prop with a default value of 40
 const MomentumLogo = ({ className = '', size = 40 }) => {
   const svgVariants = {
     hidden: { opacity: 0 },
@@ -18,12 +17,13 @@ const MomentumLogo = ({ className = '', size = 40 }) => {
       pathLength: 1,
       opacity: 1,
       transition: {
-        duration: 0.5,
+        duration: 1,
         ease: 'easeInOut',
       },
     },
   };
-  const circleVariants = {
+  // Renamed to shapeVariants for clarity, but works the same for rects
+  const shapeVariants = {
     hidden: { scale: 0, opacity: 0 },
     visible: {
       scale: 1,
@@ -38,7 +38,6 @@ const MomentumLogo = ({ className = '', size = 40 }) => {
 
   return (
     <motion.svg
-      // Use the size prop for width and height
       width={size}
       height={size}
       viewBox="0 0 100 100"
@@ -48,66 +47,82 @@ const MomentumLogo = ({ className = '', size = 40 }) => {
       initial="hidden"
       animate="visible"
       aria-labelledby="momentum-logo-title"
+      // Added a transform-origin for the scale animation to look right
+      style={{ transformOrigin: '50% 50%' }}
     >
       <title id="momentum-logo-title">Momentum Logo</title>
-      <motion.circle
-        cx="15"
-        cy="85"
-        r="8"
+
+      {/* Replaced circles with rects */}
+      <motion.rect
+        x="7" // cx(15) - r(8)
+        y="67" // cy(75) - r(8)
+        width="16"
+        height="16"
+        rx="4" // Corner radius
         fill="currentColor"
-        variants={circleVariants}
+        variants={shapeVariants}
       />
-      <motion.circle
-        cx="30"
-        cy="15"
-        r="8"
+      <motion.rect
+        x="22" // cx(30) - r(8)
+        y="17" // cy(25) - r(8)
+        width="16"
+        height="16"
+        rx="4"
         fill="currentColor"
-        variants={circleVariants}
+        variants={shapeVariants}
       />
-      <motion.circle
-        cx="50"
-        cy="45"
-        r="8"
+      <motion.rect
+        x="42" // cx(50) - r(8)
+        y="42" // cy(50) - r(8)
+        width="16"
+        height="16"
+        rx="4"
         fill="currentColor"
-        variants={circleVariants}
+        variants={shapeVariants}
       />
-      <motion.circle
-        cx="70"
-        cy="15"
-        r="8"
+      <motion.rect
+        x="62" // cx(70) - r(8)
+        y="17" // cy(25) - r(8)
+        width="16"
+        height="16"
+        rx="4"
         fill="currentColor"
-        variants={circleVariants}
+        variants={shapeVariants}
       />
-      <motion.circle
-        cx="85"
-        cy="85"
-        r="8"
+      <motion.rect
+        x="77" // cx(85) - r(8)
+        y="67" // cy(75) - r(8)
+        width="16"
+        height="16"
+        rx="4"
         fill="currentColor"
-        variants={circleVariants}
+        variants={shapeVariants}
       />
+
+      {/* Paths remain the same, connecting the center points */}
       <motion.path
-        d="M 15 85 L 30 15"
+        d="M 15 75 L 30 25"
         stroke="currentColor"
         strokeWidth="8"
         strokeLinecap="round"
         variants={pathVariants}
       />
       <motion.path
-        d="M 30 15 L 50 45"
+        d="M 30 25 L 50 50"
         stroke="currentColor"
         strokeWidth="8"
         strokeLinecap="round"
         variants={pathVariants}
       />
       <motion.path
-        d="M 50 45 L 70 15"
+        d="M 50 50 L 70 25"
         stroke="currentColor"
         strokeWidth="8"
         strokeLinecap="round"
         variants={pathVariants}
       />
       <motion.path
-        d="M 70 15 L 85 85"
+        d="M 70 25 L 85 75"
         stroke="currentColor"
         strokeWidth="8"
         strokeLinecap="round"

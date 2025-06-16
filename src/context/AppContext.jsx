@@ -29,22 +29,6 @@ export const AppProvider = ({ children }) => {
     return hasCached ? false : true;
   });
 
-  useEffect(() => {
-    const savedData = localStorage.getItem('momentumUserData');
-    const saved = localStorage.getItem('supabaseSession');
-    if (!session && saved) {
-      try {
-        const cachedSession = JSON.parse(saved);
-        setSession(cachedSession);
-        fetchUserProfile(cachedSession.user);
-      } catch {}
-    }
-
-    if (savedData) {
-      setUserData(JSON.parse(savedData));
-    }
-  }, []);
-
   const fetchUserProfile = useCallback(async (user) => {
     if (!user) {
       setUserData(null);
@@ -78,23 +62,6 @@ export const AppProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  // useEffect(() => {
-  //   supabase.auth.getSession().then(({ data: { session } }) => {
-  //     setSession(session);
-  //     if (userData === null) {
-  //       fetchUserProfile(session?.user);
-  //     }
-  //   });
-
-  //   const {
-  //     data: { subscription },
-  //   } = supabase.auth.onAuthStateChange((_event, session) => {
-  //     setSession(session);
-  //     fetchUserProfile(session?.user);
-  //   });
-
-  //   return () => subscription.unsubscribe();
-  // }, [fetchUserProfile]);
   const initializedRef = useRef(false);
 
   useEffect(() => {
@@ -102,9 +69,10 @@ export const AppProvider = ({ children }) => {
     initializedRef.current = true;
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Session on first mount:', session);
       setSession(session);
-      fetchUserProfile(session?.user);
+      if (!userData) {
+        fetchUserProfile(session?.user);
+      }
     });
 
     const {
@@ -114,20 +82,19 @@ export const AppProvider = ({ children }) => {
         localStorage.setItem('supabaseSession', JSON.stringify(session));
       }
       setSession(session);
-      fetchUserProfile(session?.user);
+      if (!userData) {
+        fetchUserProfile(session?.user);
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchUserProfile]);
+  }, [fetchUserProfile, userData]);
 
   const saveData = useCallback(
     async (newUserData) => {
       if (session?.user && newUserData) {
         setUserData(newUserData);
-        // --- NEW: Also save data to localStorage on every update ---
         localStorage.setItem('momentumUserData', JSON.stringify(newUserData));
-
-        // The save to Supabase still happens in the background
         const { error } = await supabase
           .from('profiles')
           .upsert({ id: session.user.id, data: newUserData });
