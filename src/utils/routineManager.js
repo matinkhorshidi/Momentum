@@ -23,14 +23,12 @@ const isScheduledForToday = (routine) => {
 };
 
 /**
+ * --- CORRECTED AND SIMPLIFIED ---
  * Determines the status of today's routines based on logs and streaks.
- * @param {Array} categories - The user's full categories array.
- * @param {object} log - The user's full log object.
- * @returns {Array} - An array of today's routines with their status.
+ * This function now ONLY reads the data and does not modify it.
  */
 export const getTodaysRoutines = (categories = [], log = {}) => {
   const todayStr = new Date().toISOString().slice(0, 10);
-  const yesterdayStr = getYesterdayDateString();
   const todaysLog = log[todayStr] || {};
 
   const scheduledRoutines = categories.filter((cat) =>
@@ -39,15 +37,30 @@ export const getTodaysRoutines = (categories = [], log = {}) => {
 
   return scheduledRoutines.map((cat) => {
     const isCompleted = todaysLog[cat.id] > 0;
-    let streakCount = cat.streak?.count || 0;
 
-    // Check if the streak was broken
+    // Simply read the streak count from the data.
+    // If last completion was not today, it's not today's streak yet.
+    let displayStreak =
+      cat.streak?.lastCompleted === todayStr
+        ? cat.streak?.count || 0
+        : cat.streak?.count || 0;
+
+    // A special case: if a streak was from yesterday, show it as pending to be continued
     if (
-      streakCount > 0 &&
-      cat.streak?.lastCompleted !== todayStr &&
-      cat.streak?.lastCompleted !== yesterdayStr
+      !isCompleted &&
+      cat.streak?.lastCompleted === getYesterdayDateString()
     ) {
-      streakCount = 0; // Reset streak if they missed a day
+      displayStreak = cat.streak?.count || 0;
+    } else if (!isCompleted) {
+      // If not completed today and not from yesterday, don't show a misleading streak number
+      const lastCompletedDate = new Date(
+        cat.streak?.lastCompleted + 'T00:00:00'
+      );
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      if (lastCompletedDate < yesterday) {
+        displayStreak = 0;
+      }
     }
 
     return {
@@ -55,35 +68,34 @@ export const getTodaysRoutines = (categories = [], log = {}) => {
       label: cat.label,
       color: cat.color,
       status: isCompleted ? 'completed' : 'pending',
-      streak: streakCount,
+      streak: displayStreak,
     };
   });
 };
 
 /**
- * This function should be called when a routine is completed.
- * It returns the updated streak object to be saved.
+ * --- CORRECTED AND MORE ROBUST ---
+ * This function now correctly handles all cases for updating a streak.
  * @param {object} category - The category object being updated.
- * @returns {object} - The new streak object.
+ * @returns {object} - The new streak object to be saved.
  */
 export const updateStreak = (category) => {
   const todayStr = new Date().toISOString().slice(0, 10);
   const yesterdayStr = getYesterdayDateString();
+
   const lastCompleted = category.streak?.lastCompleted;
-  let currentCount = category.streak?.count || 0;
+  const currentCount = category.streak?.count || 0;
 
+  // If already completed today, do nothing.
   if (lastCompleted === todayStr) {
-    return category.streak; // Already completed today, no change
+    return category.streak;
   }
 
+  // If last completed yesterday, it's a continuation. Increment the streak.
   if (lastCompleted === yesterdayStr) {
-    currentCount++; // Maintained the streak
-  } else {
-    currentCount = 1; // New streak or broken streak
+    return { count: currentCount + 1, lastCompleted: todayStr };
   }
 
-  return {
-    count: currentCount,
-    lastCompleted: todayStr,
-  };
+  // Otherwise, it's a new or broken streak. Reset to 1.
+  return { count: 1, lastCompleted: todayStr };
 };

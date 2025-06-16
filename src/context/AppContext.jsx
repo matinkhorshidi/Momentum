@@ -4,6 +4,7 @@ import React, {
   useCallback,
   createContext,
   useContext,
+  useRef,
 } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { DEFAULT_USER_DATA } from '../utils/constants';
@@ -11,9 +12,38 @@ import { DEFAULT_USER_DATA } from '../utils/constants';
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  const [session, setSession] = useState(null);
-  const [userData, setUserData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState(() => {
+    const saved = localStorage.getItem('supabaseSession');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [userData, setUserData] = useState(() => {
+    const saved = localStorage.getItem('momentumUserData');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [loading, setLoading] = useState(() => {
+    const hasCached =
+      localStorage.getItem('supabaseSession') &&
+      localStorage.getItem('momentumUserData');
+    return hasCached ? false : true;
+  });
+
+  useEffect(() => {
+    const savedData = localStorage.getItem('momentumUserData');
+    const saved = localStorage.getItem('supabaseSession');
+    if (!session && saved) {
+      try {
+        const cachedSession = JSON.parse(saved);
+        setSession(cachedSession);
+        fetchUserProfile(cachedSession.user);
+      } catch {}
+    }
+
+    if (savedData) {
+      setUserData(JSON.parse(savedData));
+    }
+  }, []);
 
   const fetchUserProfile = useCallback(async (user) => {
     if (!user) {
@@ -48,8 +78,31 @@ export const AppProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
+  // useEffect(() => {
+  //   supabase.auth.getSession().then(({ data: { session } }) => {
+  //     setSession(session);
+  //     if (userData === null) {
+  //       fetchUserProfile(session?.user);
+  //     }
+  //   });
+
+  //   const {
+  //     data: { subscription },
+  //   } = supabase.auth.onAuthStateChange((_event, session) => {
+  //     setSession(session);
+  //     fetchUserProfile(session?.user);
+  //   });
+
+  //   return () => subscription.unsubscribe();
+  // }, [fetchUserProfile]);
+  const initializedRef = useRef(false);
+
   useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Session on first mount:', session);
       setSession(session);
       fetchUserProfile(session?.user);
     });
@@ -57,6 +110,9 @@ export const AppProvider = ({ children }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        localStorage.setItem('supabaseSession', JSON.stringify(session));
+      }
       setSession(session);
       fetchUserProfile(session?.user);
     });
@@ -68,11 +124,15 @@ export const AppProvider = ({ children }) => {
     async (newUserData) => {
       if (session?.user && newUserData) {
         setUserData(newUserData);
+        // --- NEW: Also save data to localStorage on every update ---
+        localStorage.setItem('momentumUserData', JSON.stringify(newUserData));
+
+        // The save to Supabase still happens in the background
         const { error } = await supabase
           .from('profiles')
           .upsert({ id: session.user.id, data: newUserData });
         if (error) {
-          console.error('Error saving data:', error);
+          console.error('Error saving data to Supabase:', error);
         }
       }
     },

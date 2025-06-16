@@ -33,7 +33,7 @@ const LoginScreen = () => {
     <div className="flex justify-center items-center h-screen text-center">
       <div className="bg-surface p-10 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] w-[90%] max-w-[380px]">
         <div className="flex justify-center items-center gap-2 mb-2">
-          <MomentumLogo />
+          <MomentumLogo className="text-accent" />
           <h1 className="text-accent text-3xl font-bold">Momentum</h1>
         </div>
         <p className="text-secondary-text mb-6">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, PlusSquare } from 'lucide-react';
+import { X, PlusSquare, Flame } from 'lucide-react';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useAppContext } from '../../context/AppContext';
 import { getTodayDateString, getTextColorForBg } from '../../utils/helpers';
@@ -7,7 +7,6 @@ import Card from '../ui/Card';
 import Modal from '../ui/Modal'; // Import Modal
 import AddCategoryForm from './AddCategoryForm'; // Import Form
 import { updateStreak, getTodaysRoutines } from '../../utils/routineManager';
-import { Star } from 'lucide-react';
 
 const DailyTracker = () => {
   const { userData, saveData } = useAppContext();
@@ -29,33 +28,40 @@ const DailyTracker = () => {
       transition: { duration: 0.4, ease: 'easeInOut' },
     });
 
-    // Start with the current user data as a base
-    const updatedData = { ...userData };
+    // Create a deep copy of userData to modify
+    const updatedData = JSON.parse(JSON.stringify(userData));
 
     // 1. Update the log
     const todayStr = getTodayDateString();
-    const newLog = JSON.parse(JSON.stringify(updatedData.log || {}));
-    if (!newLog[todayStr]) newLog[todayStr] = {};
-    newLog[todayStr][catId] = (newLog[todayStr][catId] || 0) + 1;
-    updatedData.log = newLog;
+    if (!updatedData.log[todayStr]) {
+      updatedData.log[todayStr] = {};
+    }
+    updatedData.log[todayStr][catId] =
+      (updatedData.log[todayStr][catId] || 0) + 1;
 
-    // 2. Check for and update the streak
-    const category = updatedData.settings.categories.find(
+    // 2. Check for and update the streak for the completed routine
+    const categoryIndex = updatedData.settings.categories.findIndex(
       (c) => c.id === catId
     );
-    const isRoutine = !!category?.routine;
-    const isAlreadyCompleted =
-      todaysRoutines.find((r) => r.id === catId)?.status === 'completed';
+    if (categoryIndex !== -1) {
+      const category = updatedData.settings.categories[categoryIndex];
+      const isRoutine = !!category.routine;
 
-    if (isRoutine && !isAlreadyCompleted) {
-      const newStreak = updateStreak(category);
-      const newCategories = updatedData.settings.categories.map((c) =>
-        c.id === catId ? { ...c, streak: newStreak } : c
+      const todaysRoutines = getTodaysRoutines(
+        userData.settings.categories,
+        userData.log
       );
-      updatedData.settings.categories = newCategories;
+      const isAlreadyCompleted =
+        todaysRoutines.find((r) => r.id === catId)?.status === 'completed';
+
+      // Only update streak if it's a routine and wasn't already completed today
+      if (isRoutine && !isAlreadyCompleted) {
+        const newStreak = updateStreak(category);
+        updatedData.settings.categories[categoryIndex].streak = newStreak;
+      }
     }
 
-    // 3. Save the single, fully updated payload
+    // 3. Save the single, fully updated payload to Supabase
     saveData(updatedData);
   };
 
@@ -150,10 +156,10 @@ const DailyTracker = () => {
               >
                 {/* Position the star absolutely in the top-right corner */}
                 {isPendingRoutine && (
-                  <Star
-                    size={14}
-                    className="absolute top-1 right-1 text-white/50"
-                    fill="white"
+                  <Flame
+                    size={12}
+                    className="absolute top-1 right-1"
+                    fill="currentColor"
                   />
                 )}
                 + {cat.label}

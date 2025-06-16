@@ -2,14 +2,14 @@ import React from 'react';
 import { AppProvider, useAppContext } from './context/AppContext';
 import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
-import LoadingSpinner from './components/ui/LoadingSpinner';
+import MainLoader from './components/ui/MainLoader';
 
 // This component uses the context to decide which screen to show.
 const AppContent = () => {
   const { session, loading } = useAppContext();
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <MainLoader />;
   }
 
   return !session ? <LoginScreen /> : <Dashboard />;

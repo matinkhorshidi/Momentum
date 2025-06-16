@@ -142,7 +142,7 @@ const CategoryManager = () => {
                     className={`p-1.5 rounded-full transition-colors ${
                       cat.routine
                         ? 'text-accent hover:bg-accent/20'
-                        : 'text-secondary-text hover:bg-white/10 group-hover:opacity-100 opacity-0'
+                        : 'text-secondary-text/60 hover:text-accent hover:bg-accent/20'
                     }`}
                   >
                     <Calendar size={16} />
