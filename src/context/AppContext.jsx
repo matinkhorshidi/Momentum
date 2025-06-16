@@ -70,20 +70,27 @@ export const AppProvider = ({ children }) => {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (!userData) {
-        fetchUserProfile(session?.user);
+      if (session && !userData) {
+        fetchUserProfile(session.user);
+      } else if (!session) {
+        setLoading(false);
       }
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
+      if (_event === 'SIGNED_OUT') {
+        setSession(null);
+        setUserData(null);
+        localStorage.removeItem('supabaseSession');
+        localStorage.removeItem('momentumUserData');
+      } else if (session) {
+        setSession(session);
         localStorage.setItem('supabaseSession', JSON.stringify(session));
-      }
-      setSession(session);
-      if (!userData) {
-        fetchUserProfile(session?.user);
+        if (!userData) {
+          fetchUserProfile(session.user);
+        }
       }
     });
 

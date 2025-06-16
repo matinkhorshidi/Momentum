@@ -6,10 +6,18 @@ import MomentumLogo from '../ui/MomentumLogo';
 
 const Header = () => {
   const { session } = useAppContext();
-  const handleLogout = () => {
-    localStorage.removeItem('momentumUserData');
-    localStorage.removeItem('focusSessionEndTime');
-    supabase.auth.signOut();
+
+  const handleLogout = async () => {
+    // 1. Call the Supabase sign out method
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      console.error('Error logging out:', error.message);
+    } else {
+      // 2. On successful sign out, force a full page refresh.
+      // Your AppContext will have already cleared localStorage behind the scenes.
+      window.location.reload();
+    }
   };
 
   const getGreeting = () => {
@@ -20,18 +28,13 @@ const Header = () => {
   };
 
   return (
-    // 1. Add `relative` to the header to create a positioning context for its children.
-    <header className="relative bg-surface rounded-xl p-4 sm:p-5 flex justify-between items-center mb-8 border border-white/5 shadow-[0_0_30px_rgba(187,134,252,0.05)]">
+    <header className="relative bg-surface rounded-xl p-4 sm:p-5 flex justify-between items-center mb-8 border border-white/5 ">
       {/* Left side: The brand mark */}
       <div className="flex items-center gap-4">
-        <MomentumLogo className="text-accent" />
-        <h1 className="text-2xl font-semibold text-primary-text tracking-tight">
-          Momentum
-        </h1>
+        <MomentumLogo className="text-accent" isAnimated={true} />
       </div>
 
       {/* Center section: The personalized greeting */}
-      {/* 2. Add absolute positioning classes to perfectly center this div. */}
       <div className="absolute left-1/2 -translate-x-1/2 text-center">
         {session?.user?.email && (
           <>

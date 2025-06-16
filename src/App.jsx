@@ -1,21 +1,39 @@
-import React from 'react';
+// src/App.jsx
+import React, { useState, useEffect } from 'react';
 import { AppProvider, useAppContext } from './context/AppContext';
 import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
 import MainLoader from './components/ui/MainLoader';
 
-// This component uses the context to decide which screen to show.
 const AppContent = () => {
   const { session, loading } = useAppContext();
+  const [isAnimationComplete, setAnimationComplete] = useState(false);
+
+  useEffect(() => {
+    if (session) {
+      setAnimationComplete(false);
+    }
+  }, [session]);
+
+  const handleAnimationEnd = () => {
+    setAnimationComplete(true);
+  };
 
   if (loading) {
-    return <MainLoader />;
+    return null;
   }
 
-  return !session ? <LoginScreen /> : <Dashboard />;
+  if (!session) {
+    return <LoginScreen />;
+  }
+
+  if (session && !isAnimationComplete) {
+    return <MainLoader onAnimationEnd={handleAnimationEnd} />;
+  }
+
+  return <Dashboard />;
 };
 
-// The root component wraps everything in the Provider.
 export default function App() {
   return (
     <AppProvider>

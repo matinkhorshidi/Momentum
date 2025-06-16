@@ -1,13 +1,26 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const MomentumLogo = ({ className = '', size = 40 }) => {
+const MomentumLogo = ({
+  className = '',
+  size = 40,
+  isAnimated = false,
+  onAnimationComplete,
+}) => {
   const svgVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
         staggerChildren: 0.15,
+      },
+    },
+    bounce: {
+      scale: [1, 1.2, 1],
+      transition: {
+        duration: 0.5,
+        ease: 'easeInOut',
+        delay: 1.8,
       },
     },
   };
@@ -35,6 +48,7 @@ const MomentumLogo = ({ className = '', size = 40 }) => {
       },
     },
   };
+  const animationSequence = isAnimated ? ['visible', 'bounce'] : 'visible';
 
   return (
     <motion.svg
@@ -44,11 +58,11 @@ const MomentumLogo = ({ className = '', size = 40 }) => {
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       variants={svgVariants}
-      initial="hidden"
-      animate="visible"
+      initial={isAnimated ? 'hidden' : 'visible'}
+      animate={animationSequence}
       aria-labelledby="momentum-logo-title"
-      // Added a transform-origin for the scale animation to look right
       style={{ transformOrigin: '50% 50%' }}
+      onAnimationComplete={onAnimationComplete}
     >
       <title id="momentum-logo-title">Momentum Logo</title>
 
