@@ -128,7 +128,7 @@ const DailyTracker = () => {
       </Modal>
       <Card
         title="Alright, what's the mission for today?"
-        description="Add a block of pure, uninterrupted focus."
+        description="Select a focus area below each time you complete a task to add it to your daily log. Add a block of pure, uninterrupted focus."
         headerAction={AddButton}
       >
         <div className="flex flex-wrap gap-3 mb-6">

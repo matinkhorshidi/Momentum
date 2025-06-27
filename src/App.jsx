@@ -40,7 +40,7 @@ export default function App() {
         <div className="min-h-screen bg-bg-color text-primary-text font-sans">
           <AppContent />
         </div>
-        <Toaster position="bottom-center" />
+        <Toaster position="top-center" />
       </TourProvider>
     </UserProvider>
   );

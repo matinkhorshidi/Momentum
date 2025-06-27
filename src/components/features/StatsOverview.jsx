@@ -32,7 +32,11 @@ const StatsOverview = () => {
   };
 
   return (
-    <Card title="Your Grand Tally" className="text-center">
+    <Card
+      title="Your Grand Tally"
+      description="The monument to your momentum. See the sum of all your effort and the streak that proves your consistency."
+      className="text-center"
+    >
       <div className="pb-6 mb-6 border-b border-border-default">
         <div className="text-6xl font-bold leading-none text-accent">
           <AnimatedNumber value={grandTotal} />

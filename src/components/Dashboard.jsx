@@ -13,7 +13,8 @@ import Skeleton from './ui/Skeleton';
 import { useUser } from '../context/UserProvider';
 import { useTour } from '../context/TourContext';
 import FirstTimeSetupModal from './features/FirstTimeSetupModal';
-// WelcomeTourModal is no longer needed here as Joyride handles the UI
+import { getTodaysRoutines, updateStreak } from '../utils/routineManager';
+import toast from 'react-hot-toast'; // --- 1. Import toast
 
 // A helper hook to get the previous value of a state or prop
 const usePrevious = (value) => {
@@ -26,9 +27,17 @@ const usePrevious = (value) => {
 
 const Dashboard = () => {
   const categoryManagerRef = useRef(null);
-  const { loading, isFirstLogin } = useUser();
+  const [celebrationTrigger, setCelebrationTrigger] = useState(null);
+  const { userData, loading, isFirstLogin } = useUser(); // Assuming useUser provides userData
   const { setRunTour } = useTour();
 
+  const celebrationQuotes = [
+    "Boom! Routine complete. You're unstoppable. 🚀",
+    "That's a win! Keep building that momentum.",
+    'Another one bites the dust. Fantastic work! 🔥',
+    'Consistency unlocked! Great job staying on track.',
+    'You just invested in your future self. ✨',
+  ];
   // Track the previous value of isFirstLogin
   const prevIsFirstLogin = usePrevious(isFirstLogin);
 
@@ -49,6 +58,52 @@ const Dashboard = () => {
     }
   }, [isFirstLogin, prevIsFirstLogin, setRunTour]);
 
+  // This effect detects when a routine is completed by comparing previous and current logs
+  const prevUserData = useRef(userData);
+  useEffect(() => {
+    // Ensure we have both previous and current data to compare
+    if (prevUserData.current && userData && !loading) {
+      const currentRoutines = getTodaysRoutines(
+        userData.settings?.categories,
+        userData.log
+      );
+      const previousRoutines = getTodaysRoutines(
+        prevUserData.current.settings?.categories,
+        prevUserData.current.log
+      );
+
+      // Find a routine that was just completed
+      const justCompleted = currentRoutines.find((routine) => {
+        const prevStatus = previousRoutines.find(
+          (pr) => pr.id === routine.id
+        )?.status;
+        return routine.status === 'completed' && prevStatus === 'pending';
+      });
+
+      if (justCompleted) {
+        // --- A. Trigger the confetti animation ---
+        setCelebrationTrigger({ id: justCompleted.id, timestamp: Date.now() });
+
+        // --- B. Show a random motivational toast ---
+        const randomQuote =
+          celebrationQuotes[
+            Math.floor(Math.random() * celebrationQuotes.length)
+          ];
+        toast.success(randomQuote, {
+          duration: 4000,
+          style: {
+            borderRadius: '12px',
+            background: '#333',
+            color: '#fff',
+            border: '1px solid #444',
+            padding: '16px',
+          },
+        });
+      }
+    }
+    // Update the ref for the next comparison
+    prevUserData.current = userData;
+  }, [userData, loading]);
   return (
     <div className="max-w-screen-xl mx-auto p-4 sm:p-8">
       {/* This now works as originally intended */}
@@ -72,7 +127,10 @@ const Dashboard = () => {
             <Skeleton height={150} />
           ) : (
             <div id="tour-step-routines-card">
-              <TodaysRoutinesCard categoryManagerRef={categoryManagerRef} />
+              <TodaysRoutinesCard
+                categoryManagerRef={categoryManagerRef}
+                celebrationTrigger={celebrationTrigger}
+              />
             </div>
           )}
           <div id="tour-step-5-focus-timer">

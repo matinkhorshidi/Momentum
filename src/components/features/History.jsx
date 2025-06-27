@@ -114,7 +114,7 @@ const History = () => {
     <>
       <Card
         title="The Logbook"
-        description="A record of your past victories. Click any day to see the details."
+        description="A record of your past victories. Click any day to review the details of your hard work."
         headerAction={addDayButton}
       >
         <div className="flex flex-col">

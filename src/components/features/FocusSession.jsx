@@ -56,7 +56,10 @@ const FocusSession = () => {
   const seconds = remainingSeconds % 60;
 
   return (
-    <Card title="Focus Session" className="text-center">
+    <Card
+      title="Focus Session"
+      description="Enter a state of deep work. Use this timer to eliminate distractions and focus intensely."
+    >
       <div className="relative w-48 h-48 mx-auto my-6 grid place-items-center">
         {/* Background Track: A solid, semi-transparent circle */}
         <svg className="absolute inset-0 w-full h-full" viewBox="0 0 200 200">

@@ -74,7 +74,11 @@ const ActivityChart = () => {
   );
 
   return (
-    <Card title="Recent Activity" headerAction={TimeframeToggle}>
+    <Card
+      title="Recent Activity"
+      description="Discover your productivity rhythm. This chart visualizes your effort and patterns over the last 7 or 30 days."
+      headerAction={TimeframeToggle}
+    >
       <div style={{ width: '100%', height: 250 }}>
         <ResponsiveContainer>
           <BarChart

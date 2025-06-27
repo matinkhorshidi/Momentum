@@ -89,7 +89,11 @@ const CategoryManager = () => {
   );
 
   return (
-    <Card title="Your Focus Areas" headerAction={EditButton}>
+    <Card
+      title="Your Focus Areas"
+      description="Your personalized toolkit. Add, edit, reorder, or set routines for your unique areas of focus."
+      headerAction={EditButton}
+    >
       <div
         className="flex flex-col gap-1 mb-4"
         onDragOver={(e) => e.preventDefault()}
