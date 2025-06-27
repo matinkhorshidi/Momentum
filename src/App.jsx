@@ -1,6 +1,7 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
 import { AppProvider, useAppContext } from './context/AppContext';
+import { TourProvider } from './context/TourContext';
 import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
 import MainLoader from './components/ui/MainLoader';
@@ -35,10 +36,12 @@ const AppContent = () => {
 
 export default function App() {
   return (
-    <AppProvider>
-      <div className="min-h-screen bg-bg-color text-primary-text font-sans">
-        <AppContent />
-      </div>
-    </AppProvider>
+    <TourProvider>
+      <AppProvider>
+        <div className="min-h-screen bg-bg-color text-primary-text font-sans">
+          <AppContent />
+        </div>
+      </AppProvider>
+    </TourProvider>
   );
 }

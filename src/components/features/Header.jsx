@@ -1,21 +1,21 @@
+// src/features/Header.jsx
+
 import React from 'react';
-import { LogOut } from 'lucide-react';
+import { LogOut, HelpCircle } from 'lucide-react'; // 1. Import HelpCircle icon
 import { supabase } from '../../lib/supabaseClient';
 import { useAppContext } from '../../context/AppContext';
+import { useTour } from '../../context/TourContext'; // 2. Import the useTour hook
 import MomentumLogo from '../ui/MomentumLogo';
 
 const Header = () => {
   const { session } = useAppContext();
+  const { startTour } = useTour(); // 3. Get the startTour function
 
   const handleLogout = async () => {
-    // 1. Call the Supabase sign out method
     const { error } = await supabase.auth.signOut();
-
     if (error) {
       console.error('Error logging out:', error.message);
     } else {
-      // 2. On successful sign out, force a full page refresh.
-      // Your AppContext will have already cleared localStorage behind the scenes.
       window.location.reload();
     }
   };
@@ -46,14 +46,25 @@ const Header = () => {
         )}
       </div>
 
-      {/* Right side: The sign out button */}
-      <button
-        onClick={handleLogout}
-        title="Sign Out"
-        className="p-2 rounded-full text-secondary-text hover:bg-white/10 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-accent"
-      >
-        <LogOut size={20} />
-      </button>
+      {/* Right side: Action buttons */}
+      {/* 4. Group buttons together for better layout */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={startTour}
+          title="Restart the guided tour"
+          className="p-2 rounded-full text-secondary-text hover:bg-white/10 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          <HelpCircle size={20} />
+        </button>
+
+        <button
+          onClick={handleLogout}
+          title="Sign Out"
+          className="p-2 rounded-full text-secondary-text hover:bg-white/10 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          <LogOut size={20} />
+        </button>
+      </div>
     </header>
   );
 };
