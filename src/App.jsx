@@ -10,7 +10,7 @@ const AppContent = () => {
   const [isAnimationComplete, setAnimationComplete] = useState(false);
 
   useEffect(() => {
-    if (session) {
+    if (session?.user) {
       setAnimationComplete(false);
     }
   }, [session]);
@@ -23,9 +23,8 @@ const AppContent = () => {
     return null;
   }
 
-  if (!session) {
-    return <LoginScreen />;
-  }
+  if (loading) return <MainLoader />;
+  if (!session) return <LoginScreen />;
 
   if (session && !isAnimationComplete) {
     return <MainLoader onAnimationEnd={handleAnimationEnd} />;

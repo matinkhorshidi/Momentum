@@ -25,6 +25,8 @@ export const AppProvider = ({ children }) => {
       return;
     }
 
+    if (!loading) setLoading(true); // ❗ اضافه نکن اگر قبلاً لود هست
+
     setLoading(true);
     const { data, error } = await supabase
       .from('profiles')
@@ -62,17 +64,44 @@ export const AppProvider = ({ children }) => {
   const initializedRef = useRef(false);
 
   useEffect(() => {
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        supabase.auth.getSession().then(({ data: { session: newSession } }) => {
+          if (!newSession?.user) return;
+
+          // ✅ فقط اگر یوزر قبلی با جدید فرق داشت، update کن
+          if (!session?.user || session.user.id !== newSession.user.id) {
+            setSession(newSession);
+            fetchUserProfile(newSession.user);
+          }
+        });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () =>
+      document.removeEventListener('visibilitychange', handleVisibility);
+  }, [session, fetchUserProfile]);
+
+  useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        fetchUserProfile(session.user);
-      } else {
-        setLoading(false);
-      }
-    });
+    // ✅ فقط یکبار لودینگ رو true کن
+    const localSession = supabase.auth.getSessionSync?.();
+    if (localSession) {
+      setSession(localSession);
+      fetchUserProfile(localSession.user); // fetchUserProfile خودش setLoading(false) می‌کنه
+    } else {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setSession(session);
+        if (session) {
+          fetchUserProfile(session.user); // باز هم در fetchUserProfile لودینگ مدیریت میشه
+        } else {
+          setLoading(false); // اگر session نداشتیم، لودینگ رو همینجا false کن
+        }
+      });
+    }
 
     const {
       data: { subscription },
@@ -83,6 +112,7 @@ export const AppProvider = ({ children }) => {
       } else if (_event === 'SIGNED_OUT') {
         setUserData(null);
         setIsFirstLogin(false);
+        setLoading(false); // مهم
       }
     });
 
