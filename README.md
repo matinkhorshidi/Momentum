@@ -83,5 +83,3 @@ To run this project locally on your machine, follow these steps:
 6.  **Watch Your Progress**: See your "Today's Routines" get checked off automatically, your streaks increase, and your "Recent Activity" chart grow taller each day!
 
 ---
-
-This README provides a comprehensive overview that will make your project look highly professional on GitHub.

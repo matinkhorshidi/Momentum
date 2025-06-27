@@ -67,7 +67,10 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
-
+    if (userData) {
+      setLoading(false);
+      return;
+    }
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session && !userData) {
