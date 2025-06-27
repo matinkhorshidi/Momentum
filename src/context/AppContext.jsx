@@ -7,116 +7,119 @@ import React, {
   useRef,
 } from 'react';
 import { supabase } from '../lib/supabaseClient';
-// --- MODIFIED: Import EMPTY_USER_DATA instead ---
 import { EMPTY_USER_DATA } from '../utils/constants';
 
+// 1. Context Creation
 const AppContext = createContext();
 
+// 2. Custom Hook for easy context access
+export const useAppContext = () => {
+  const context = useContext(AppContext);
+  if (context === undefined) {
+    throw new Error('useAppContext must be used within an AppProvider');
+  }
+  return context;
+};
+
+// 3. The Provider Component
 export const AppProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [userData, setUserData] = useState(null);
   const [isFirstLogin, setIsFirstLogin] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Start with loading true
 
-  const fetchUserProfile = useCallback(async (user) => {
-    if (!user) {
-      setUserData(null);
-      setLoading(false);
-      return;
-    }
+  // This ref helps distinguish the very first load from subsequent auth events
+  const isInitialAuthHandled = useRef(false);
 
-    if (!loading) setLoading(true); // ❗ اضافه نکن اگر قبلاً لود هست
-
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('data, is_first_login')
-      .eq('id', user.id)
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      console.error('Error fetching profile:', error);
-      setLoading(false);
-    } else if (data) {
-      setIsFirstLogin(data.is_first_login);
-
-      // --- MODIFIED: Use EMPTY_USER_DATA for new users ---
-      if (!data.data) {
-        // If the user has no data in the DB, initialize with a blank slate.
-        const emptyData = JSON.parse(JSON.stringify(EMPTY_USER_DATA));
-        setUserData(emptyData);
-        // We will save this initial empty state during onboarding.
-      } else {
-        // For existing users, merge their data with the base structure.
-        const settings = {
-          ...EMPTY_USER_DATA.settings,
-          ...(data.data.settings || {}),
-        };
-        const log = data.data.log || EMPTY_USER_DATA.log;
-        setUserData({ settings, log });
+  /**
+   * Fetches user profile from the database.
+   * Can run in two modes:
+   * - Normal mode (shows a loader).
+   * - Background refresh mode (updates data silently).
+   */
+  const fetchUserProfile = useCallback(
+    async (user, isBackgroundRefresh = false) => {
+      if (!user) {
+        setUserData(null);
+        setLoading(false);
+        return;
       }
-      setLoading(false);
-    } else {
-      setLoading(false);
-    }
-  }, []);
 
-  const initializedRef = useRef(false);
-
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (!document.hidden) {
-        supabase.auth.getSession().then(({ data: { session: newSession } }) => {
-          if (!newSession?.user) return;
-
-          // ✅ فقط اگر یوزر قبلی با جدید فرق داشت، update کن
-          if (!session?.user || session.user.id !== newSession.user.id) {
-            setSession(newSession);
-            fetchUserProfile(newSession.user);
-          }
-        });
+      if (!isBackgroundRefresh) {
+        setLoading(true);
       }
-    };
 
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () =>
-      document.removeEventListener('visibilitychange', handleVisibility);
-  }, [session, fetchUserProfile]);
+      console.log(
+        `👤 fetchUserProfile called (background: ${isBackgroundRefresh})`
+      );
 
-  useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('data, is_first_login')
+        .eq('id', user.id)
+        .single();
 
-    // ✅ فقط یکبار لودینگ رو true کن
-    const localSession = supabase.auth.getSessionSync?.();
-    if (localSession) {
-      setSession(localSession);
-      fetchUserProfile(localSession.user); // fetchUserProfile خودش setLoading(false) می‌کنه
-    } else {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        setSession(session);
-        if (session) {
-          fetchUserProfile(session.user); // باز هم در fetchUserProfile لودینگ مدیریت میشه
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching profile:', error);
+      } else if (data) {
+        setIsFirstLogin(data.is_first_login);
+        if (!data.data) {
+          const emptyData = JSON.parse(JSON.stringify(EMPTY_USER_DATA));
+          setUserData(emptyData);
         } else {
-          setLoading(false); // اگر session نداشتیم، لودینگ رو همینجا false کن
+          const settings = {
+            ...EMPTY_USER_DATA.settings,
+            ...(data.data.settings || {}),
+          };
+          const log = data.data.log || EMPTY_USER_DATA.log;
+          setUserData({ settings, log });
         }
-      });
-    }
+      }
+      // Always set loading to false after the fetch is complete.
+      setLoading(false);
+    },
+    []
+  );
 
+  // This is now the SINGLE source of truth for handling authentication.
+  useEffect(() => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      console.log(`🔄 onAuthStateChange Fired! Event: ${_event}`);
       setSession(newSession);
-      if (_event === 'SIGNED_IN') {
-        fetchUserProfile(newSession.user);
-      } else if (_event === 'SIGNED_OUT') {
+
+      // A user session exists
+      if (newSession) {
+        // If this is the very first auth event, fetch with a loader.
+        if (!isInitialAuthHandled.current) {
+          fetchUserProfile(newSession.user, false); // false = show loader
+          isInitialAuthHandled.current = true; // Mark as handled
+        } else if (_event === 'TOKEN_REFRESHED') {
+          // For subsequent token refreshes (like tab focus), update silently.
+          fetchUserProfile(newSession.user, true); // true = background refresh
+        }
+      }
+      // User has signed out
+      else if (_event === 'SIGNED_OUT') {
         setUserData(null);
         setIsFirstLogin(false);
-        setLoading(false); // مهم
+        setLoading(false);
+        isInitialAuthHandled.current = false; // Reset for the next login
       }
     });
 
-    return () => subscription.unsubscribe();
+    // On initial app load, if there's no session after a moment, stop loading.
+    // This handles the case where a user is not logged in at all.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [fetchUserProfile]);
 
   const saveData = useCallback(
@@ -150,6 +153,7 @@ export const AppProvider = ({ children }) => {
     }
   }, [session]);
 
+  // The value provided to all consuming components
   const value = {
     userData,
     saveData,
@@ -160,12 +164,4 @@ export const AppProvider = ({ children }) => {
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
-};
-
-export const useAppContext = () => {
-  const context = useContext(AppContext);
-  if (context === undefined) {
-    throw new Error('useAppContext must be used within an AppProvider');
-  }
-  return context;
 };

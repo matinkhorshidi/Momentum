@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X } from 'lucide-react';
-import { useAppContext } from '../../context/AppContext';
+import { useUser } from '../../context/UserProvider';
 import { COLOR_PALETTE } from '../../utils/constants';
 import ColorPicker from '../ui/ColorPicker';
 import RoutineControls from './RoutineControls';
 
 const AddCategoryForm = ({ onCategoryAdded }) => {
-  const { userData, saveData } = useAppContext();
+  const { userData, saveData } = useUser();
   const [newLabel, setNewLabel] = useState('');
   const [newColor, setNewColor] = useState(COLOR_PALETTE.Vibrant[0]);
   const [isRoutineEnabled, setIsRoutineEnabled] = useState(false);

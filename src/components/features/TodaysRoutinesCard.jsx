@@ -1,13 +1,13 @@
 import React, { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Flame, CalendarPlus } from 'lucide-react';
-import { useAppContext } from '../../context/AppContext';
+import { useUser } from '../../context/UserProvider';
 import { getTodaysRoutines } from '../../utils/routineManager';
 import Card from '../ui/Card';
 
 // Receive the ref as a prop
 const TodaysRoutinesCard = ({ categoryManagerRef }) => {
-  const { userData } = useAppContext();
+  const { userData } = useUser();
 
   const todaysRoutines = useMemo(() => {
     return getTodaysRoutines(userData?.settings?.categories, userData?.log);

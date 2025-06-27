@@ -1,54 +1,91 @@
 // src/context/TourContext.jsx
 
 import React, { createContext, useState, useContext } from 'react';
-import Joyride, { STATUS } from 'react-joyride';
+import Joyride, { STATUS, EVENTS } from 'react-joyride';
 
 const TourContext = createContext();
 
+// --- MODIFIED STEPS WITH AUTO PLACEMENT ---
 const TOUR_STEPS = [
   {
     target: '#tour-step-1-logging-focus',
     content:
-      "This is Mission Control! Just finished a task? Smash one of these buttons to log your victory and tell procrastination who's boss.",
-    placement: 'bottom',
-    title: 'Log Your Wins! (1/5)',
+      'Your first quest: When you crush a task, hit its button here to celebrate the win. Each click builds your momentum!',
+    placement: 'auto', // Changed to auto
+    title: 'Your Mission Control',
   },
   {
     target: '#tour-step-2-managing-areas',
     content:
-      "This is your creative sandbox. Don't like our categories? No problem! Hit 'Edit' to rename, recolor, reorder, or invent your own focus areas. Go wild!",
-    placement: 'right',
-    title: 'Customize Your Arsenal (2/5)',
+      "This is your command center for customization. Hit 'Edit' to rename, recolor, or invent new focus areas. Make this space truly yours.",
+    placement: 'auto', // Changed to auto
+    title: 'Customize Your Arsenal',
+  },
+  {
+    target: '#tour-step-routines-card',
+    content:
+      'Consistency is your new superpower. Set recurring goals here and check them off daily to build unstoppable habits.',
+    placement: 'auto', // Changed to auto
+    title: 'Power-Up Your Habits',
   },
   {
     target: '#tour-step-3-grand-tally',
     content:
-      "Watch the numbers go UP! Every click fuels your 'Grand Tally.' Keep that 'Day Streak' alive and build a monument to your own awesomeness.",
-    placement: 'bottom',
-    title: 'Behold! Your Epic Stats (3/5)',
+      "This is your trophy room. Watch your total effort grow and keep that 'Day Streak' fiery. You're building a legacy!",
+    placement: 'auto', // Changed to auto
+    title: 'Behold! Your Epic Stats',
   },
   {
     target: '#tour-step-4-activity-chart',
     content:
-      'Ever wonder where your time *really* goes? This chart is your personal data detective, revealing your unique work patterns. Are you a marathon coder or a multitasking wizard?',
-    placement: 'top',
-    title: 'Discover Your Rhythm (4/5)',
+      'Become a data detective. This chart reveals your unique work patterns, helping you understand where your genius flows.',
+    placement: 'auto', // Changed to auto
+    title: 'Discover Your Rhythm',
   },
   {
     target: '#tour-step-5-focus-timer',
     content:
-      "Time to go deep! Banish all distractions with this Pomodoro-style timer. Pick your battle duration, hit 'Start,' and enter a glorious state of flow.",
-    placement: 'right',
-    title: 'Enter the Focus Zone (5/5)',
+      "It's time for deep work. Silence the noise, pick a duration, and enter a state of pure, uninterrupted flow. Let's do this.",
+    placement: 'auto', // Changed to auto
+    title: 'Enter the Focus Zone',
   },
 ];
 
 export const TourProvider = ({ children }) => {
   const [runTour, setRunTour] = useState(false);
+  const highlightedElementRef = React.useRef(null);
 
   const handleJoyrideCallback = (data) => {
-    const { status } = data;
+    const { status, type, step } = data;
+    const HIGHLIGHT_CLASSES = [
+      'ring-2',
+      'ring-accent',
+      'ring-offset-2',
+      'ring-offset-bg-color',
+      'transition-all',
+      'duration-300',
+      'rounded-xl',
+    ];
+
+    const cleanupHighlight = () => {
+      if (highlightedElementRef.current) {
+        highlightedElementRef.current.classList.remove(...HIGHLIGHT_CLASSES);
+        highlightedElementRef.current = null;
+      }
+    };
+
+    if (type === EVENTS.STEP_BEFORE) {
+      cleanupHighlight();
+
+      const currentElement = document.querySelector(step.target);
+      if (currentElement) {
+        currentElement.classList.add(...HIGHLIGHT_CLASSES);
+        highlightedElementRef.current = currentElement;
+      }
+    }
+
     if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
+      cleanupHighlight();
       setRunTour(false);
       localStorage.setItem('momentumTourCompleted', 'true');
     }
@@ -67,34 +104,46 @@ export const TourProvider = ({ children }) => {
         steps={TOUR_STEPS}
         run={runTour}
         continuous
-        showProgress
+        showProgress={false}
         showSkipButton
         disableBeacon={true}
         styles={{
-          // === UPDATED STYLES TO MATCH YOUR THEME ===
           options: {
-            arrowColor: '#1e1e1e', // Matches 'surface'
-            backgroundColor: '#1e1e1e', // Matches 'surface'
-            primaryColor: '#bb86fc', // Matches 'accent'
-            textColor: '#e0e0e0', // Matches 'primary-text'
+            arrowColor: '#1e1e1e',
+            backgroundColor: '#1e1e1e',
+            primaryColor: '#bb86fc',
+            textColor: '#e0e0e0',
             zIndex: 10000,
           },
-          // Make the close button more subtle and theme-aligned
-          buttonClose: {
-            color: '#a0a0a0', // Matches 'secondary-text'
+          tooltip: {
+            border: '1px solid #333',
+            borderRadius: '12px',
+            padding: '20px',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.2)',
+            textAlign: 'left',
           },
-          // Style the back/skip buttons to be less prominent
+          footer: {
+            marginTop: '20px',
+            textAlign: 'right',
+          },
+          spotlight: {
+            padding: 0,
+            borderRadius: '12px',
+          },
+          buttonClose: {
+            color: '#a0a0a0',
+          },
           buttonBack: {
-            color: '#a0a0a0', // Matches 'secondary-text'
+            color: '#a0a0a0',
           },
           buttonSkip: {
-            color: '#a0a0a0', // Matches 'secondary-text'
+            color: '#a0a0a0',
           },
         }}
         locale={{
           back: 'Previous',
           close: 'Close',
-          last: "Let's Go!",
+          last: 'Start My Momentum',
           next: 'Next',
           skip: 'Skip',
         }}

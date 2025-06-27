@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
-import { useAppContext } from '../../context/AppContext';
+import { useUser } from '../../context/UserProvider';
 import Card from '../ui/Card';
 
 const FocusSession = () => {
-  const { userData, saveData } = useAppContext();
+  const { userData, saveData } = useUser();
   const duration = userData?.settings?.focusDuration || 45;
   const [totalSeconds, setTotalSeconds] = useState(duration * 60);
   const [remainingSeconds, setRemainingSeconds] = useState(duration * 60);

@@ -1,12 +1,12 @@
 import React, { useRef, useMemo } from 'react';
 import { Download, Upload, Flame } from 'lucide-react';
-import { useAppContext } from '../../context/AppContext';
+import { useUser } from '../../context/UserProvider';
 import { calculateOverallStreak } from '../../utils/helpers';
 import Card from '../ui/Card';
 import AnimatedNumber from '../ui/AnimatedNumber';
 
 const StatsOverview = () => {
-  const { userData, saveData } = useAppContext();
+  const { userData } = useUser();
   const importInputRef = useRef(null);
 
   const { totalsMap, grandTotal, streak } = useMemo(() => {

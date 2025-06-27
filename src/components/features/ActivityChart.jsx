@@ -8,7 +8,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts';
-import { useAppContext } from '../../context/AppContext';
+import { useUser } from '../../context/UserProvider';
 import { prepareChartData } from '../../utils/chartHelpers';
 import Card from '../ui/Card';
 
@@ -35,7 +35,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 const ActivityChart = () => {
-  const { userData } = useAppContext();
+  const { userData } = useUser();
   const [timeframe, setTimeframe] = useState(7); // Default to 7 days
 
   const chartData = useMemo(() => {

@@ -3,12 +3,12 @@
 import React from 'react';
 import { LogOut, HelpCircle } from 'lucide-react'; // 1. Import HelpCircle icon
 import { supabase } from '../../lib/supabaseClient';
-import { useAppContext } from '../../context/AppContext';
+import { useUser } from '../../context/UserProvider';
 import { useTour } from '../../context/TourContext'; // 2. Import the useTour hook
 import MomentumLogo from '../ui/MomentumLogo';
 
 const Header = () => {
-  const { session } = useAppContext();
+  const { session } = useUser();
   const { startTour } = useTour(); // 3. Get the startTour function
 
   const handleLogout = async () => {

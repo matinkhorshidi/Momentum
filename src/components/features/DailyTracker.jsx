@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, PlusSquare, Flame } from 'lucide-react';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
-import { useAppContext } from '../../context/AppContext';
+import { useUser } from '../../context/UserProvider';
 import { getTodayDateString, getTextColorForBg } from '../../utils/helpers';
 import Card from '../ui/Card';
 import Modal from '../ui/Modal'; // Import Modal
@@ -9,7 +9,7 @@ import AddCategoryForm from './AddCategoryForm'; // Import Form
 import { updateStreak, getTodaysRoutines } from '../../utils/routineManager';
 
 const DailyTracker = () => {
-  const { userData, saveData } = useAppContext();
+  const { userData, saveData } = useUser();
   // --- Animation Hook: To control the container pulse ---
   const logContainerControls = useAnimation();
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false); // State for modal

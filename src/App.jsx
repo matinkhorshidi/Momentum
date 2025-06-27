@@ -1,47 +1,47 @@
 // src/App.jsx
-import React, { useState, useEffect } from 'react';
-import { AppProvider, useAppContext } from './context/AppContext';
+
+import { Toaster } from 'react-hot-toast';
+import { UserProvider, useUser } from './context/UserProvider';
 import { TourProvider } from './context/TourContext';
 import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
 import MainLoader from './components/ui/MainLoader';
+import { useAuth } from './hooks/useAuth';
 
 const AppContent = () => {
-  const { session, loading } = useAppContext();
-  const [isAnimationComplete, setAnimationComplete] = useState(false);
+  // به جای useAppContext از useAuth و useUser استفاده می‌کنیم
+  const { session, loadingAuth } = useAuth();
+  const { loading: loadingUser } = useUser();
 
-  useEffect(() => {
-    if (session?.user) {
-      setAnimationComplete(false);
-    }
-  }, [session]);
-
-  const handleAnimationEnd = () => {
-    setAnimationComplete(true);
-  };
-
-  if (loading) {
-    return null;
+  // اگر در حال بررسی اولیه session هستیم، لودر را نشان بده
+  if (loadingAuth) {
+    return <MainLoader />;
   }
 
-  if (loading) return <MainLoader />;
-  if (!session) return <LoginScreen />;
-
-  if (session && !isAnimationComplete) {
-    return <MainLoader onAnimationEnd={handleAnimationEnd} />;
+  // اگر session وجود ندارد، صفحه لاگین را نشان بده
+  if (!session) {
+    return <LoginScreen />;
   }
 
+  // اگر session وجود دارد ولی هنوز در حال لود پروفایل کاربر هستیم، لودر را نشان بده
+  if (session && loadingUser) {
+    return <MainLoader />;
+  }
+
+  // در نهایت، داشبورد را نشان بده
   return <Dashboard />;
 };
 
 export default function App() {
   return (
-    <TourProvider>
-      <AppProvider>
+    // TourProvider باید داخل UserProvider باشد تا به اطلاعات کاربر دسترسی داشته باشد
+    <UserProvider>
+      <TourProvider>
         <div className="min-h-screen bg-bg-color text-primary-text font-sans">
           <AppContent />
         </div>
-      </AppProvider>
-    </TourProvider>
+        <Toaster position="bottom-center" />
+      </TourProvider>
+    </UserProvider>
   );
 }

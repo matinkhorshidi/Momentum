@@ -10,7 +10,7 @@ import History from './features/History';
 import TodaysRoutinesCard from './features/TodaysRoutinesCard';
 import ActivityChart from './features/ActivityChart';
 import Skeleton from './ui/Skeleton';
-import { useAppContext } from '../context/AppContext';
+import { useUser } from '../context/UserProvider';
 import { useTour } from '../context/TourContext';
 import FirstTimeSetupModal from './features/FirstTimeSetupModal';
 // WelcomeTourModal is no longer needed here as Joyride handles the UI
@@ -26,7 +26,7 @@ const usePrevious = (value) => {
 
 const Dashboard = () => {
   const categoryManagerRef = useRef(null);
-  const { loading, isFirstLogin } = useAppContext();
+  const { loading, isFirstLogin } = useUser();
   const { setRunTour } = useTour();
 
   // Track the previous value of isFirstLogin
@@ -71,7 +71,9 @@ const Dashboard = () => {
           {loading ? (
             <Skeleton height={150} />
           ) : (
-            <TodaysRoutinesCard categoryManagerRef={categoryManagerRef} />
+            <div id="tour-step-routines-card">
+              <TodaysRoutinesCard categoryManagerRef={categoryManagerRef} />
+            </div>
           )}
           <div id="tour-step-5-focus-timer">
             {loading ? <Skeleton height={180} /> : <FocusSession />}

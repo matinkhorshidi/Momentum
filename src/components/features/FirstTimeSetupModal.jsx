@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAppContext } from '../../context/AppContext';
+import { useUser } from '../../context/UserProvider';
 import MomentumLogo from '../ui/MomentumLogo';
 import {
   Code2,
@@ -69,7 +69,7 @@ const TEMPLATES = {
 };
 
 const FirstTimeSetupModal = () => {
-  const { userData, saveData, completeOnboarding } = useAppContext();
+  const { userData, saveData, completeOnboarding } = useUser();
   const [selectedTemplates, setSelectedTemplates] = useState([]);
 
   const toggleTemplate = (templateName) => {

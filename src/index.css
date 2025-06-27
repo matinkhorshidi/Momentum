@@ -6,3 +6,18 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+input::-webkit-calendar-picker-indicator {
+  filter: invert(1); /* ممکن است در همه مرورگرها کار نکند */
+}
+
+input:focus::-webkit-datetime-edit-month-field,
+input:focus::-webkit-datetime-edit-day-field,
+input:focus::-webkit-datetime-edit-year-field {
+  color: #f0f0f0; /* رنگ متن در حالت فوکوس */
+}
+
+input:focus::-webkit-inner-spin-button,
+input:focus::-webkit-clear-button {
+  filter: invert(1); /* ممکن است در همه مرورگرها کار نکند */
+}
