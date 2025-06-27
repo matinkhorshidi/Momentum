@@ -9,13 +9,18 @@ import TodaysRoutinesCard from './features/TodaysRoutinesCard';
 import ActivityChart from './features/ActivityChart';
 import Skeleton from './ui/Skeleton';
 import { useAppContext } from '../context/AppContext';
+import FirstTimeSetupModal from './features/FirstTimeSetupModal'; // --- NEW: Import the modal
 
 const Dashboard = () => {
   const categoryManagerRef = useRef(null);
-  const { loading, userData } = useAppContext();
+  // --- MODIFIED: Get isFirstLogin from context
+  const { loading, userData, isFirstLogin } = useAppContext();
 
   return (
     <div className="max-w-screen-xl mx-auto p-4 sm:p-8">
+      {/* --- NEW: Conditionally render the modal --- */}
+      {isFirstLogin && <FirstTimeSetupModal />}
+
       <Header />
       <main className="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-8 items-start">
         <div className="flex flex-col gap-8">

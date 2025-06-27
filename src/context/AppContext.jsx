@@ -7,27 +7,16 @@ import React, {
   useRef,
 } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { DEFAULT_USER_DATA } from '../utils/constants';
+// --- MODIFIED: Import EMPTY_USER_DATA instead ---
+import { EMPTY_USER_DATA } from '../utils/constants';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  const [session, setSession] = useState(() => {
-    const saved = localStorage.getItem('supabaseSession');
-    return saved ? JSON.parse(saved) : null;
-  });
-
-  const [userData, setUserData] = useState(() => {
-    const saved = localStorage.getItem('momentumUserData');
-    return saved ? JSON.parse(saved) : null;
-  });
-
-  const [loading, setLoading] = useState(() => {
-    const hasCached =
-      localStorage.getItem('supabaseSession') &&
-      localStorage.getItem('momentumUserData');
-    return hasCached ? false : true;
-  });
+  const [session, setSession] = useState(null);
+  const [userData, setUserData] = useState(null);
+  const [isFirstLogin, setIsFirstLogin] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const fetchUserProfile = useCallback(async (user) => {
     if (!user) {
@@ -39,27 +28,35 @@ export const AppProvider = ({ children }) => {
     setLoading(true);
     const { data, error } = await supabase
       .from('profiles')
-      .select('data')
+      .select('data, is_first_login')
       .eq('id', user.id)
       .single();
 
     if (error && error.code !== 'PGRST116') {
       console.error('Error fetching profile:', error);
-    } else if (data && data.data) {
-      const settings = {
-        ...DEFAULT_USER_DATA.settings,
-        ...(data.data.settings || {}),
-      };
-      const log = data.data.log || DEFAULT_USER_DATA.log;
-      setUserData({ settings, log });
+      setLoading(false);
+    } else if (data) {
+      setIsFirstLogin(data.is_first_login);
+
+      // --- MODIFIED: Use EMPTY_USER_DATA for new users ---
+      if (!data.data) {
+        // If the user has no data in the DB, initialize with a blank slate.
+        const emptyData = JSON.parse(JSON.stringify(EMPTY_USER_DATA));
+        setUserData(emptyData);
+        // We will save this initial empty state during onboarding.
+      } else {
+        // For existing users, merge their data with the base structure.
+        const settings = {
+          ...EMPTY_USER_DATA.settings,
+          ...(data.data.settings || {}),
+        };
+        const log = data.data.log || EMPTY_USER_DATA.log;
+        setUserData({ settings, log });
+      }
+      setLoading(false);
     } else {
-      const defaultData = JSON.parse(JSON.stringify(DEFAULT_USER_DATA));
-      setUserData(defaultData);
-      await supabase
-        .from('profiles')
-        .upsert({ id: user.id, data: defaultData });
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   const initializedRef = useRef(false);
@@ -67,47 +64,40 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
-    if (userData) {
-      setLoading(false);
-      return;
-    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session && !userData) {
+      if (session) {
         fetchUserProfile(session.user);
-      } else if (!session) {
+      } else {
         setLoading(false);
       }
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (_event === 'SIGNED_OUT') {
-        setSession(null);
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      if (_event === 'SIGNED_IN') {
+        fetchUserProfile(newSession.user);
+      } else if (_event === 'SIGNED_OUT') {
         setUserData(null);
-        localStorage.removeItem('supabaseSession');
-        localStorage.removeItem('momentumUserData');
-      } else if (session) {
-        setSession(session);
-        localStorage.setItem('supabaseSession', JSON.stringify(session));
-        if (!userData) {
-          fetchUserProfile(session.user);
-        }
+        setIsFirstLogin(false);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchUserProfile, userData]);
+  }, [fetchUserProfile]);
 
   const saveData = useCallback(
     async (newUserData) => {
       if (session?.user && newUserData) {
         setUserData(newUserData);
-        localStorage.setItem('momentumUserData', JSON.stringify(newUserData));
         const { error } = await supabase
           .from('profiles')
-          .upsert({ id: session.user.id, data: newUserData });
+          .update({ data: newUserData })
+          .eq('id', session.user.id);
+
         if (error) {
           console.error('Error saving data to Supabase:', error);
         }
@@ -116,7 +106,28 @@ export const AppProvider = ({ children }) => {
     [session]
   );
 
-  const value = { userData, saveData, session, loading };
+  const completeOnboarding = useCallback(async () => {
+    if (session?.user) {
+      setIsFirstLogin(false);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_first_login: false })
+        .eq('id', session.user.id);
+
+      if (error) {
+        console.error('Error updating is_first_login flag:', error);
+      }
+    }
+  }, [session]);
+
+  const value = {
+    userData,
+    saveData,
+    session,
+    loading,
+    isFirstLogin,
+    completeOnboarding,
+  };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };

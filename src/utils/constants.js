@@ -19,14 +19,11 @@ export const COLOR_PALETTE = {
   ],
 };
 
-export const DEFAULT_USER_DATA = {
+// NEW: This defines the structure for a brand new user with no default categories.
+export const EMPTY_USER_DATA = {
   settings: {
     focusDuration: 45,
-    categories: [
-      { id: 'work', label: 'Work', color: '#3b82f6' },
-      { id: 'study', label: 'University', color: '#22c55e' },
-      { id: 'side-project', label: 'Side Project', color: '#f97316' },
-    ],
+    categories: [], // Categories start as an empty array
   },
   log: {},
 };
