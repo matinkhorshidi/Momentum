@@ -88,7 +88,7 @@ export const UserProvider = ({ children }) => {
   }, [session]);
 
   const value = {
-    session, // --- FIX: Add session to the context value ---
+    session,
     userData,
     saveData,
     loading,
