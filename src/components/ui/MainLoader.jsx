@@ -5,9 +5,9 @@ const MainLoader = ({ onAnimationEnd }) => {
     <div className="fixed inset-0 flex flex-col justify-center items-center bg-bg-color z-50">
       <MomentumLogo
         className="text-accent"
-        size={100}
+        size={150}
         isAnimated={true}
-        onAnimationComplete={onAnimationEnd}
+        onAnimationEnd={onAnimationEnd}
       />
     </div>
   );

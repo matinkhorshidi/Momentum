@@ -7,17 +7,12 @@ import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
 import MainLoader from './components/ui/MainLoader';
 import { useAuth } from './hooks/useAuth';
-import { useState } from 'react';
 
 const AppContent = () => {
   // به جای useAppContext از useAuth و useUser استفاده می‌کنیم
   const { session, loadingAuth } = useAuth();
   const { loading: loadingUser } = useUser();
-  const [animationComplete, setAnimationComplete] = useState(false);
 
-  const handleAnimationEnd = () => {
-    setAnimationComplete(true); // زمانی که انیمیشن تمام شد، این حالت تغییر می‌کند
-  };
   // اگر در حال بررسی اولیه session هستیم، لودر را نشان بده
   if (loadingAuth) {
     return <MainLoader />;
@@ -29,8 +24,8 @@ const AppContent = () => {
   }
 
   // اگر session وجود دارد ولی هنوز در حال لود پروفایل کاربر هستیم، لودر را نشان بده
-  if ((session && loadingUser) || !animationComplete) {
-    return <MainLoader onAnimationEnd={handleAnimationEnd} />;
+  if (session && loadingUser) {
+    return <MainLoader />;
   }
 
   // در نهایت، داشبورد را نشان بده
